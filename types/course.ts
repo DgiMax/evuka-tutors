@@ -1,25 +1,28 @@
-// Defines the structure for a single lesson, including user progress
+// ---------- LESSON ----------
 export interface Lesson {
   id: number;
   title: string;
-  content: string;
-  video_link: string | null;
-  estimated_duration_minutes: number;
-  is_completed: boolean;
-  last_watched_timestamp: number;
+  content?: string;
+  video_link?: string | null;
+  estimated_duration_minutes?: number;
 }
 
-// Defines the structure for a module, which contains lessons
+// ---------- MODULE ----------
 export interface Module {
   id: number;
   title: string;
-  order: number;
+  order?: number;
   lessons: Lesson[];
 }
 
-// Defines the complete data structure for the course learning page
-export interface CourseLearningData {
+// ---------- COURSE ----------
+export interface CoursePreviewData {
+  id: number;
   title: string;
   slug: string;
+  description?: string;
+  thumbnail?: string | null;
+  category?: string;
+  status?: string;
   modules: Module[];
 }

@@ -1,7 +1,7 @@
-// app/(your-path)/CourseCreatePage.tsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray, Control, UseFormWatch, SubmitHandler, type Resolver } from "react-hook-form";
 import * as z from "zod";
@@ -38,6 +38,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+interface CreateCourseViewProps {
+  isEditMode?: boolean;
+  courseSlug?: string;
+}
 
 // --- TYPE DEFINITIONS ---
 interface DropdownOption {
@@ -183,7 +188,7 @@ const steps = [
   { id: 4, name: "Pricing & Publish", icon: DollarSign, fields: ["price", "status"] as const },
 ];
 
-export default function CourseCreatePage() {
+export default function CourseCreatePage({ isEditMode = false, courseSlug }: CreateCourseViewProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [formOptions, setFormOptions] = useState<FormOptionsData | null>(null);
@@ -213,22 +218,52 @@ export default function CourseCreatePage() {
       return false;
     }, [user, activeSlug]);
 
-  // Fetch form options
   useEffect(() => {
-    const fetchOptions = async () => {
-      setIsFetchingOptions(true);
-      try {
-        const response = await api.get<FormOptionsData>("/courses/form-options/");
-        setFormOptions(response.data);
-      } catch (error) {
-        console.error("Failed to fetch form options:", error);
-        toast.error("Failed to load form data. Please try refreshing.", { duration: 5000 });
-      } finally {
-        setIsFetchingOptions(false);
-      }
-    };
-    fetchOptions();
-  }, [activeSlug]);
+  const fetchOptions = async () => {
+    setIsFetchingOptions(true);
+    try {
+      console.log("=== FETCHING FORM OPTIONS ===", activeSlug || "(no active slug)");
+
+      const url = activeSlug
+        ? `/courses/form-options/?slug=${activeSlug}`
+        : "/courses/form-options/";
+
+      const response = await api.get(url);
+
+      console.log("=== RAW RESPONSE FROM BACKEND ===");
+      console.log(JSON.stringify(response.data, null, 2));
+
+      const data = response.data;
+
+      // ✅ Detect both camelCase and snake_case
+      const normalized = {
+        globalCategories:
+          data.globalCategories || data.global_categories || [],
+        globalLevels:
+          data.globalLevels || data.global_levels || [],
+        orgCategories:
+          data.orgCategories || data.org_categories || [],
+        orgLevels:
+          data.orgLevels || data.org_levels || [],
+        context: data.context || "global",
+      };
+
+      console.log("=== NORMALIZED FRONTEND DATA ===");
+      console.log(JSON.stringify(normalized, null, 2));
+
+      setFormOptions(normalized);
+    } catch (error) {
+      console.error("Failed to fetch form options:", error);
+      toast.error("Failed to load form data. Please try refreshing.", { duration: 5000 });
+    } finally {
+      setIsFetchingOptions(false);
+    }
+  };
+
+  fetchOptions();
+}, [activeSlug]);
+
+
 
   // Form setup
   // ---- NOTE: cast the resolver to the react-hook-form Resolver type to avoid the type incompatibility
@@ -252,6 +287,50 @@ export default function CourseCreatePage() {
     mode: "onBlur",
     shouldUnregister: false,
   });
+
+  useEffect(() => {
+  const fetchCourse = async () => {
+    if (!isEditMode) return;
+    try {
+      const response = await api.get(`/tutor-courses/${courseSlug}/`);
+      const course = response.data;
+
+      // ✅ Map existing data into form structure
+    form.reset({
+      title: course.title || "",
+      short_description: course.short_description || "",
+      long_description: course.long_description || "",
+      learning_objectives:
+        course.learning_objectives?.map((obj: string) => ({ value: obj })) || [{ value: "" }, { value: "" }],
+      global_category: course.global_category?.id?.toString() || "",
+      global_level: course.global_level?.id?.toString() || "",
+      org_category: course.org_category?.id?.toString() || "",
+      org_level: course.org_level?.id?.toString() || "",
+      status: course.status || "draft",
+      price: course.price || undefined,
+      promo_video: course.promo_video || "",
+      thumbnail: course.thumbnail || null,
+      modules:
+        course.modules?.map((mod: any) => ({
+          title: mod.title,
+          description: mod.description,
+          lessons:
+            mod.lessons?.map((les: any) => ({
+              title: les.title,
+              video_link: les.video_link,
+            })) || [],
+        })) || [{ title: "", description: "", lessons: [{ title: "", video_link: "" }] }],
+    });
+
+    } catch (err) {
+      console.error("❌ Failed to fetch course:", err);
+      toast.error("Could not load course details for editing.");
+    }
+  };
+
+  fetchCourse();
+}, [isEditMode, courseSlug]);
+
 
   const { fields: objectives, append: appendObjective, remove: removeObjective } = useFieldArray({
     control: form.control,
@@ -309,9 +388,13 @@ export default function CourseCreatePage() {
 
     // 3. API Call
     try {
-    const response = await api.post("/courses/", formData, {
+    const response = isEditMode
+    ? await api.put(`/tutor-courses/${courseSlug}/`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
-    });
+      })
+    : await api.post("/tutor-courses/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
     const { title: courseTitle, slug } = response.data;
 
@@ -319,38 +402,57 @@ export default function CourseCreatePage() {
     let message = "";
     let description = "";
 
-    if (status === "published") {
+    if (isEditMode) {
+      // --- Editing an existing course ---
+      if (status === "published") {
+        message = "✅ Course Updated & Published!";
+        description = `Your course "${courseTitle}" changes are live.`;
+        console.log("Course updated and published successfully:", response.data);
+      } else if (status === "pending_review") {
+        message = "🕓 Course Update Submitted for Review!";
+        description = `Your updates to "${courseTitle}" have been submitted to admins.`;
+        console.log("Course update submitted for review:", response.data);
+      } else {
+        message = "💾 Changes Saved!";
+        description = `Updates to your course "${courseTitle}" have been saved as a draft.`;
+        console.log("Course draft updated successfully:", response.data);
+      }
+    } else {
+      // --- Creating a new course ---
+      if (status === "published") {
         message = "🎉 Course Published!";
         description = `Your course "${courseTitle}" is now live.`;
         console.log("Course published successfully:", response.data);
-    } else if (status === "pending_review") {
+      } else if (status === "pending_review") {
         message = "👍 Submitted for Review!";
         description = `Your course "${courseTitle}" has been submitted to admins.`;
         console.log("Course submitted for review:", response.data);
-    } else {
+      } else {
         message = "💾 Draft Saved!";
         description = `Your course "${courseTitle}" has been saved as a draft.`;
         console.log("Course draft saved successfully:", response.data);
+      }
     }
 
     // ✅ Use Sonner toast
     toast.success(
-        <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <p>{message}</p>
         <p className="text-sm text-gray-600">{description}</p>
         {slug && (
-            <a
+          <a
             href={`/courses/${slug}`}
             target="_blank"
             rel="noopener noreferrer"
             className="underline text-blue-600 font-medium"
-            >
+          >
             🔗 View Course
-            </a>
+          </a>
         )}
-        </div>,
-        { duration: 6000 }
+      </div>,
+      { duration: 6000 }
     );
+
 
     // ✅ Reset form fields
     form.reset({
@@ -478,10 +580,13 @@ export default function CourseCreatePage() {
   // --- Render ---
   return (
     <Card className="max-w-4xl mx-auto my-8 border border-gray-200 rounded text-black shadow-none">
-      <CardHeader className="border-b">
-        <CardTitle className="text-xl">Create a New Course {activeSlug ? `for Organization` : "(Independent)"}</CardTitle>
-        <CardDescription>Fill out the details step-by-step.</CardDescription>
-      </CardHeader>
+      <CardTitle className="text-xl">
+        {isEditMode ? "Edit Course" : "Create a New Course"} {activeSlug ? "for Organization" : "(Independent)"}
+      </CardTitle>
+      <CardDescription>
+        {isEditMode ? "Update your course details below." : "Fill out the details step-by-step."}
+      </CardDescription>
+
       <CardContent className="pt-6">
         {/* Stepper */}
         <div className="flex items-center mb-8 border-b border-gray-200 pb-2">
@@ -572,67 +677,117 @@ export default function CourseCreatePage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full pt-4 border-t">
                       {/* Global Category */}
-                      <FormField control={form.control} name="global_category" render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormLabel>Marketplace Category</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
-                            <FormControl><SelectTrigger className="rounded"><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              {formOptions.globalCategories.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
+                      <FormField
+                        control={form.control}
+                        name="global_category"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormLabel>Marketplace Category</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                              <FormControl>
+                                <SelectTrigger className="rounded">
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {formOptions.globalCategories.map((cat) => (
+                                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       {/* Global Level */}
-                      <FormField control={form.control} name="global_level" render={({ field }) => (
-                        <FormItem className="w-full">
-                          <FormLabel>Difficulty Level</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || ""}>
-                            <FormControl><SelectTrigger className="rounded"><SelectValue placeholder="Select..." /></SelectTrigger></FormControl>
-                            <SelectContent>
-                              {formOptions.globalLevels.map((lvl) => (
-                                <SelectItem key={lvl.id} value={lvl.id}>{lvl.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
+                      <FormField
+                        control={form.control}
+                        name="global_level"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormLabel>Difficulty Level</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                              <FormControl>
+                                <SelectTrigger className="rounded">
+                                  <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {formOptions.globalLevels.map((lvl) => (
+                                  <SelectItem key={lvl.id} value={lvl.id.toString()}>
+                                    {lvl.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       {/* Organization Fields (Conditional) */}
                       {activeSlug && (
                         <>
-                          <FormField control={form.control} name="org_category" render={({ field }) => (
-                            <FormItem className="w-full">
-                              <FormLabel>Organization Category</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value || ""}>
-                                <FormControl><SelectTrigger className="rounded"><SelectValue placeholder="Select for organization..." /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                  {formOptions.orgCategories.length > 0 ? formOptions.orgCategories.map((cat) => (
-                                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                  )) : <div className="p-2 text-sm text-gray-500">No org categories found.</div>}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                          <FormField control={form.control} name="org_level" render={({ field }) => (
-                            <FormItem className="w-full">
-                              <FormLabel>Organization Level</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value || ""}>
-                                <FormControl><SelectTrigger className="rounded"><SelectValue placeholder="Select for organization..." /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                  {formOptions.orgLevels.length > 0 ? formOptions.orgLevels.map((lvl) => (
-                                    <SelectItem key={lvl.id} value={lvl.id}>{lvl.name}</SelectItem>
-                                  )) : <div className="p-2 text-sm text-gray-500">No org levels found.</div>}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
+                          <FormField
+                            control={form.control}
+                            name="org_category"
+                            render={({ field }) => (
+                              <FormItem className="w-full">
+                                <FormLabel>Organization Category</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded">
+                                      <SelectValue placeholder="Select for organization..." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {formOptions.orgCategories.length > 0 ? (
+                                      formOptions.orgCategories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.id.toString()}>
+                                          {cat.name}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <div className="p-2 text-sm text-gray-500">No org categories found.</div>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="org_level"
+                            render={({ field }) => (
+                              <FormItem className="w-full">
+                                <FormLabel>Organization Level</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                                  <FormControl>
+                                    <SelectTrigger className="rounded">
+                                      <SelectValue placeholder="Select for organization..." />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {formOptions.orgLevels.length > 0 ? (
+                                      formOptions.orgLevels.map((lvl) => (
+                                        <SelectItem key={lvl.id} value={lvl.id.toString()}>
+                                          {lvl.name}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <div className="p-2 text-sm text-gray-500">No org levels found.</div>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </>
                       )}
                     </div>
@@ -699,13 +854,13 @@ export default function CourseCreatePage() {
                         </FormControl>
 
                         {field.value && (
-                            <div className="mt-2">
+                          <div className="mt-2">
                             <img
-                                src={URL.createObjectURL(field.value)}
-                                alt="Preview"
-                                className="h-32 w-auto rounded border"
+                              src={typeof field.value === "string" ? field.value : URL.createObjectURL(field.value)}
+                              alt="Preview"
+                              className="h-32 w-auto rounded border object-cover"
                             />
-                            </div>
+                          </div>
                         )}
 
                         <FormDescription>Recommended: 720x405px.</FormDescription>

@@ -1,0 +1,12 @@
+'use client';
+
+import CreateCourseView from "@/components/create-course/CreateCourseView";
+
+import { useParams } from "next/navigation";
+
+export default function CourseEditPage() {
+  const params = useParams();
+  const slug = params.slug as string;
+
+  return <CreateCourseView isEditMode={true} courseSlug={slug} />;
+}
