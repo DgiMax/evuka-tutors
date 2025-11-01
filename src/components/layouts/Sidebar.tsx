@@ -26,13 +26,13 @@ import { motion, AnimatePresence } from "framer-motion";
 const topNavLinks = [
   { href: "/", label: "Dashboard", icon: LayoutGrid },
   { href: "/courses", label: "Courses", icon: GraduationCap },
-  { href: "/tutors", label: "Tutors", icon: Users },
-  { href: "/student", label: "Student", icon: Backpack },
+  { href: "/tutors", label: "Tutors", icon: Users, orgOnly: true },
+  { href: "/students", label: "Students", icon: Backpack },
   { href: "/events", label: "Events", icon: Calendar },
   { href: "/revenue", label: "Revenue & Payouts", icon: Wallet },
   { href: "/announcements", label: "Announcements", icon: Megaphone },
   { href: "/analytics", label: "Analytics", icon: BarChart },
-  { href: "/org-info", label: "Org Info", icon: Building },
+  { href: "/org-info", label: "Org Info", icon: Building, orgOnly: true },
 ];
 
 const bottomNavLinks = [
@@ -52,7 +52,7 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
   const isActive = pathname === href || pathname.startsWith(href + "/");
   const { activeSlug } = useActiveOrg();
 
-  // --- ✅ only prefix organizationSlug for org-specific routes ---
+  // Prefix organization slug when applicable
   const isGlobalLink = href === "/profile" || href === "/help";
   const computedHref = !isGlobalLink && activeSlug ? `/${activeSlug}${href}` : href;
 
@@ -80,6 +80,7 @@ type SidebarNavProps = {
 export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps) {
   const router = useRouter();
   const { logout } = useAuth();
+  const { activeSlug } = useActiveOrg();
   const [signOutLoading, setSignOutLoading] = useState(false);
 
   const handleSignOut = async () => {
@@ -95,6 +96,11 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
     }
   };
 
+  // ✅ Hide org-only links if no activeSlug
+  const visibleTopNavLinks = topNavLinks.filter(
+    (link) => !link.orgOnly || (link.orgOnly && activeSlug)
+  );
+
   return (
     <AnimatePresence>
       {isSidebarOpen && (
@@ -107,7 +113,7 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
         >
           {/* Top Section */}
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            {topNavLinks.map((link) => (
+            {visibleTopNavLinks.map((link) => (
               <NavLink
                 key={link.label}
                 {...link}

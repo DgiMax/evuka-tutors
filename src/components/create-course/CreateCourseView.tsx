@@ -265,7 +265,7 @@ export default function CourseCreatePage({ isEditMode = false, courseSlug }: Cre
 
 
 
-  // Form setup
+// Form setup
   // ---- NOTE: cast the resolver to the react-hook-form Resolver type to avoid the type incompatibility
   const form = useForm<CourseFormValues>({
     resolver: zodResolver(courseFormSchema) as unknown as Resolver<CourseFormValues>,
@@ -288,50 +288,53 @@ export default function CourseCreatePage({ isEditMode = false, courseSlug }: Cre
     shouldUnregister: false,
   });
 
+  // ✅ 1. Destructure reset here to get a stable function reference
+  const { reset } = form;
+
   useEffect(() => {
-  const fetchCourse = async () => {
-    if (!isEditMode) return;
-    try {
-      const response = await api.get(`/tutor-courses/${courseSlug}/`);
-      const course = response.data;
+    const fetchCourse = async () => {
+      if (!isEditMode || !formOptions) return;
+      try {
+        const response = await api.get(`/tutor-courses/${courseSlug}/`);
+        const course = response.data;
 
-      // ✅ Map existing data into form structure
-    form.reset({
-      title: course.title || "",
-      short_description: course.short_description || "",
-      long_description: course.long_description || "",
-      learning_objectives:
-        course.learning_objectives?.map((obj: string) => ({ value: obj })) || [{ value: "" }, { value: "" }],
-      global_category: course.global_category?.id?.toString() || "",
-      global_level: course.global_level?.id?.toString() || "",
-      org_category: course.org_category?.id?.toString() || "",
-      org_level: course.org_level?.id?.toString() || "",
-      status: course.status || "draft",
-      price: course.price || undefined,
-      promo_video: course.promo_video || "",
-      thumbnail: course.thumbnail || null,
-      modules:
-        course.modules?.map((mod: any) => ({
-          title: mod.title,
-          description: mod.description,
-          lessons:
-            mod.lessons?.map((les: any) => ({
-              title: les.title,
-              video_link: les.video_link,
-            })) || [],
-        })) || [{ title: "", description: "", lessons: [{ title: "", video_link: "" }] }],
-    });
+        // ✅ 2. Use the destructure 'reset' function
+        reset({
+          title: course.title || "",
+          short_description: course.short_description || "",
+          long_description: course.long_description || "",
+          learning_objectives:
+            course.learning_objectives?.map((obj: string) => ({ value: obj })) || [{ value: "" }, { value: "" }],
+          global_category: course.global_category?.toString() || "",
+          global_level: course.global_level?.toString() || "",
+          org_category: course.org_category?.toString() || "",
+          org_level: course.org_level?.toString() || "",
+          status: course.status || "draft",
+          price: course.price ? parseFloat(course.price) : undefined,
+          promo_video: course.promo_video || "",
+          thumbnail: course.thumbnail || null,
+          modules:
+            course.modules?.map((mod: any) => ({
+              title: mod.title,
+              description: mod.description,
+              lessons:
+                mod.lessons?.map((les: any) => ({
+                  title: les.title,
+                  // ✅ 3. FIX: Convert null video_link to an empty string
+                  video_link: les.video_link || "",
+                })) || [],
+            })) || [{ title: "", description: "", lessons: [{ title: "", video_link: "" }] }],
+        });
 
-    } catch (err) {
-      console.error("❌ Failed to fetch course:", err);
-      toast.error("Could not load course details for editing.");
-    }
-  };
+      } catch (err) {
+        console.error("❌ Failed to fetch course:", err);
+        toast.error("Could not load course details for editing.");
+      }
+    };
 
-  fetchCourse();
-}, [isEditMode, courseSlug]);
-
-
+    fetchCourse();
+  // ✅ 4. Use the stable 'reset' function in the dependency array
+  }, [isEditMode, courseSlug, formOptions, reset]);
   const { fields: objectives, append: appendObjective, remove: removeObjective } = useFieldArray({
     control: form.control,
     name: "learning_objectives",

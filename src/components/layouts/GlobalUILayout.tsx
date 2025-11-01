@@ -24,8 +24,10 @@ export default function GlobalUILayout({ children, slug = null }: GlobalUILayout
 
       {/* Main content */}
       <main className="flex-1 pt-16">
+        <div className="bg-gray-50 min-h-screen">
         <OrgContextUpdater slug={slug} />
         {children}
+        </div>
       </main>
 
       {/* Toaster */}

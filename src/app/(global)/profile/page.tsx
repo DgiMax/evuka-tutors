@@ -9,7 +9,6 @@ import api from "@/lib/api/axios"; // Your configured axios instance
 
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react"
 import { 
-  User, Briefcase, BookOpen, Film, GraduationCap, LinkIcon, 
   Settings, LogOut, ShieldAlert, Trash2, Camera, AlertTriangle 
 } from "lucide-react";
 

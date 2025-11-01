@@ -1,5 +1,5 @@
 import CreateEventPage from "@/components/events/CreateEventPage";
 
-export default function PersonalCreateEventPage() {
+export default function OrganizationalCreateEventPage() {
   return <CreateEventPage />;
 }
