@@ -10,8 +10,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "D-Vuka",
-  description: "A scalable e-learning platform.",
+  title: "D-Vuka | Tutors",
+  description: "Desire to Empower.",
 };
 
 export default function RootLayout({

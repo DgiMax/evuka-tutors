@@ -59,10 +59,9 @@ const CourseSidebar = ({
   return (
     <aside
         className={`
-            w-[400px] h-[calc(100vh-64px)]
+            w-[400px] h-full
             bg-white border-l border-gray-200
-            flex flex-col z-20
-            sticky top-[64px]
+            flex flex-col
             transition-transform duration-300 ease-in-out
             ${isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
         `}

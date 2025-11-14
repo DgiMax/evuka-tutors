@@ -771,7 +771,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
   useEffect(() => {
     setIsFetchingOptions(true);
     api
-      .get("/events/form-options/")
+      .get("/events/tutor-events/form_options/")
       .then((res) => setFormOptions(res.data))
       .catch(() => toast.error("Failed to load form options."))
       .finally(() => setIsFetchingOptions(false));
@@ -816,7 +816,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     const fetchEvent = async () => {
       setIsFetchingEvent(true);
       try {
-        const response = await api.get(`/events/tutors/${eventSlug}/`);
+        const response = await api.get(`/events/tutor-events/${eventSlug}/`);
         const eventData = response.data;
 
         reset({
@@ -825,7 +825,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
           description: eventData.description || "",
           event_type: eventData.event_type || "",
           who_can_join: eventData.who_can_join || "",
-          course: eventData.course?.toString() || "",
+          course: eventData.course?.id?.toString() || "",
           start_time: formatDateTimeForInput(eventData.start_time),
           end_time: formatDateTimeForInput(eventData.end_time),
           timezone: eventData.timezone || "Africa/Nairobi",
@@ -861,44 +861,75 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     const formData = new FormData();
 
     Object.entries(data).forEach(([key, value]) => {
-      if (key === "banner_image") {
-        if (value instanceof File) {
-          formData.append(key, value);
-        } else if (!value) {
-          formData.append(key, "");
-        }
-      } else if (Array.isArray(value)) {
-        formData.append(key, JSON.stringify(value));
-      } else if (value != null) {
-        formData.append(key, String(value));
-      }
-    });
+      if (key === "banner_image") {
+        
+        // 1. If it's a new File, append it for upload
+        if (value instanceof File) {
+          formData.append(key, value);
+        } 
+        
+        // 2. If it's null/undefined, append an empty string to clear the image
+        else if (!value) { 
+          formData.append(key, "");
+        }
+
+        // 3. If it's a string (the existing URL), do nothing.
+        //    This tells the backend to "not change" the image.
+
+      } else if (Array.isArray(value)) {
+        formData.append(key, JSON.stringify(value));
+      } else if (value != null) {
+        formData.append(key, String(value));
+   }
+    });
 
     try {
       if (isEditMode) {
-        await api.put(`/events/tutors/${eventSlug}/`, formData, {
+        await api.put(`/events/tutor-events/${eventSlug}/`, formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         toast.success("Event updated successfully!");
       } else {
-        await api.post("events/create/", formData, {
+        await api.post("events/tutor-events/", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         toast.success("Event created successfully!");
         reset();
         setCurrentStep(0);
       }
-    } catch (err) {
-      const error = err as AxiosError<{ detail?: string; [key: string]: any }>;
-      console.error("Backend validation error:", error.response?.data);
-      toast.error(
-        error.response?.data?.detail ||
-          Object.values(error.response?.data || {})[0] ||
-          "Something went wrong while saving the event."
-      );
-    } finally {
-      setIsLoading(false);
-    }
+      }  catch (err) {
+        const error = err as AxiosError<{ detail?: string; [key: string]: any }>;
+        const errorData = error.response?.data || {};
+        console.error("Backend validation error:", errorData);
+
+        let errorMessage = errorData.detail; // 1. Try to get the 'detail' message first.
+
+        if (!errorMessage) {
+          // 2. If no 'detail', find the first error key (e.g., "learning_objectives")
+          const firstErrorKey = Object.keys(errorData)[0];
+          const firstErrorValue = errorData[firstErrorKey];
+          
+          if (Array.isArray(firstErrorValue) && firstErrorValue.length > 0) {
+              // 3. Error is a list, e.g., [{"text": ["This field is blank"]}]
+              if (typeof firstErrorValue[0] === 'object' && firstErrorValue[0] !== null) {
+                  // 4. Get the first error from the nested object
+                  const nestedErrorKey = Object.keys(firstErrorValue[0])[0];
+                  errorMessage = firstErrorValue[0][nestedErrorKey][0];
+              } else {
+                  // 5. It's a simple list of strings
+                  errorMessage = firstErrorValue[0];
+              }
+          } else if (firstErrorKey) {
+              // 6. Give a helpful message
+              errorMessage = `Please check the '${firstErrorKey}' field for errors.`;
+          }
+        }
+
+        toast.error(errorMessage || "Something went wrong while saving the event.");
+
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   const steps = [
@@ -910,12 +941,18 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     },
     {
       id: 2,
+      title: "Event Details",
+      component: <StepEventDetails />,
+      fields: ["learning_objectives", "agenda", "rules"] as const,
+    },
+    {
+      id: 3,
       title: "Schedule",
       component: <StepSchedule />,
       fields: ["start_time", "end_time", "timezone", "location", "meeting_link"] as const,
     },
     {
-      id: 3,
+      id: 4,
       title: "Registration & Pricing",
       component: <StepRegistrationPricing formOptions={formOptions} />,
       fields: [
@@ -929,12 +966,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
         "event_status",
       ] as const,
     },
-    {
-      id: 4,
-      title: "Event Details",
-      component: <StepEventDetails />,
-      fields: ["learning_objectives", "agenda", "rules"] as const,
-    },
+    
   ];
 
   const nextStep = async () => {
@@ -1037,6 +1069,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
         <div className="flex gap-2">
           {currentStep < steps.length - 1 ? (
             <Button
+              type="button" // ⬅️ ADD THIS LINE
               onClick={nextStep}
               disabled={isLoading}
               className="rounded bg-[#2694C6] hover:bg-[#1f7ba5]"

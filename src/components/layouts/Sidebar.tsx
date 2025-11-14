@@ -37,7 +37,7 @@ const topNavLinks = [
 
 const bottomNavLinks = [
   { href: "/profile", label: "My Profile", icon: UserCircle },
-  { href: "/help", label: "Help", icon: HelpCircle },
+  { href: "/discover/organizations", label: "Discover", icon: HelpCircle },
 ];
 
 type NavLinkProps = {
@@ -53,7 +53,7 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
   const { activeSlug } = useActiveOrg();
 
   // Prefix organization slug when applicable
-  const isGlobalLink = href === "/profile" || href === "/help";
+  const isGlobalLink = href === "/profile" || href === "/discover/organizations";
   const computedHref = !isGlobalLink && activeSlug ? `/${activeSlug}${href}` : href;
 
   return (

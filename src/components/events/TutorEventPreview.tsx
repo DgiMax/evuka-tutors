@@ -11,7 +11,6 @@ import {
   UsersIcon,
   Eye,
   Pencil,
-  UserCheck,
 } from "lucide-react";
 
 import { EventAgenda } from "@/components/events/EventAgenda";
@@ -63,7 +62,7 @@ export type EventDetails = {
 };
 
 // ---------------------------------------------------
-// SIDEBAR: Tutor Actions
+// SIDEBAR: Tutor Actions (EDIT ONLY + STATUS)
 // ---------------------------------------------------
 
 const TutorActionSidebar = ({
@@ -94,80 +93,68 @@ const TutorActionSidebar = ({
   };
 
   return (
-    <div className="sticky top-2">
-      <div className="border border-gray-200 rounded-lg bg-white p-6 shadow-sm">
-        {/* Tutor Actions */}
-        <div className="space-y-3">
+    <div className="sticky top-16">
+      <div className="border border-gray-200 rounded bg-white p-6 shadow">
+        
+        {/* ONLY EDIT ACTION requested */}
+        <div className="mb-6">
           <Link href={makeContextLink(`/tutor/events/${event.slug}/edit`)} className="block w-full">
-            <Button className="w-full font-bold">
+            <Button className="w-full font-bold bg-[#2694C6] hover:bg-[#227fa8] rounded">
               <Pencil className="w-4 h-4 mr-2" /> Edit Event
-            </Button>
-          </Link>
-
-          <Link
-            href={makeContextLink(`/tutor/events/${event.slug}/attendees`)}
-            className="block w-full"
-          >
-            <Button variant="secondary" className="w-full font-bold">
-              <UserCheck className="w-4 h-4 mr-2" /> View Attendees
-            </Button>
-          </Link>
-
-          <Link
-            href={makeContextLink(`/events/${event.slug}`)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full"
-          >
-            <Button variant="outline" className="w-full">
-              <Eye className="w-4 h-4 mr-2" /> View Public Page
             </Button>
           </Link>
         </div>
 
-        <hr className="my-6" />
+        <hr className="my-6 border-gray-100" />
 
-        {/* Status */}
-        <div className="mb-4">
-          <p className="text-sm font-medium text-gray-900 mb-2">Event Status</p>
-          <span className={`text-xs font-medium px-3 py-1 rounded-full ${getStatusClass(status)}`}>
+        {/* Status Display */}
+        <div className="mb-6">
+          <p className="text-xs font-medium text-gray-500 uppercase mb-2">Event Status</p>
+          <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full ${getStatusClass(status)}`}>
             {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}
           </span>
         </div>
 
-        {/* Price */}
-        {event.is_paid ? (
-          <p className="text-3xl font-bold text-gray-900 mb-4">
-            {event.currency} {event.price}
-          </p>
-        ) : (
-          <p className="text-lg font-semibold text-green-600 mb-4">Free Event</p>
-        )}
-
-        {/* Details */}
-        <div className="space-y-2 text-sm text-gray-700">
-          <p className="flex items-start">
-            <CalendarDaysIcon className="w-4 h-4 mr-2 text-gray-600 mt-0.5" />
-            {new Date(event.start_time).toLocaleString("en-US", {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </p>
+        {/* Key Details Summary */}
+        <div className="space-y-3 text-sm text-gray-700">
+            {event.is_paid ? (
+                <p className="text-2xl font-bold text-gray-900 mb-4">
+                {event.currency} {event.price}
+                </p>
+            ) : (
+                <p className="text-lg font-semibold text-green-600 mb-4">Free Event</p>
+            )}
 
           <p className="flex items-start">
-            <Clock3Icon className="w-4 h-4 mr-2 text-gray-600 mt-0.5" />
-            {event.timezone}
+            <CalendarDaysIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+            <span>
+                {new Date(event.start_time).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                })}
+            </span>
           </p>
 
           <p className="flex items-start">
-            <MapPinIcon className="w-4 h-4 mr-2 text-gray-600 mt-0.5" />
-            {event.location || (event.meeting_link ? "Online" : event.event_type)}
+            <Clock3Icon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+            <span>{event.timezone}</span>
           </p>
 
           <p className="flex items-start">
-            <UsersIcon className="w-4 h-4 mr-2 text-gray-600 mt-0.5" />
-            {event.registrations_count} Registered (
-            {event.max_attendees ? `${event.max_attendees} Max` : "Unlimited"})
+            <MapPinIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+            <span className="capitalize">
+                {event.location || (event.meeting_link ? "Online" : event.event_type)}
+            </span>
+          </p>
+
+          <p className="flex items-start">
+            <UsersIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
+            <span>
+                {event.registrations_count} Registered 
+                <span className="text-gray-500 ml-1">
+                    ({event.max_attendees ? `${event.max_attendees} max` : "Unlimited"})
+                </span>
+            </span>
           </p>
         </div>
       </div>
@@ -189,33 +176,51 @@ const EventDescription = ({ html }: { html: string }) => (
 const EventDetailsLoading = () => (
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 animate-pulse">
     <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
-      <aside className="lg:order-1 order-2 mt-2 lg:mt-0">
-        <div className="h-96 bg-gray-200 rounded-lg"></div>
+      <aside className="lg:order-2 order-1 mt-8 lg:mt-0">
+         <div className="sticky top-2 border border-gray-200 rounded bg-white p-6 h-96">
+             <div className="h-10 bg-gray-200 rounded mb-6"></div>
+             <div className="h-px bg-gray-200 mb-6"></div>
+             <div className="space-y-4">
+                 <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                 <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+             </div>
+         </div>
       </aside>
-      <main className="lg:col-span-2 lg:order-2 order-1">
-        <div className="aspect-video bg-gray-200 rounded-md mb-6"></div>
-        <div className="h-8 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div className="h-6 bg-gray-200 rounded w-1/2 mb-6"></div>
-        <div className="space-y-4">
-          <div className="h-20 bg-gray-200 rounded"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
+      <main className="lg:col-span-2 lg:order-1 order-2">
+        <div className="aspect-video bg-gray-200 rounded-md mb-8"></div>
+        <div className="h-10 bg-gray-200 rounded w-3/4 mb-4"></div>
+        <div className="h-6 bg-gray-200 rounded w-1/2 mb-8"></div>
+        <div className="space-y-6">
+          <div className="h-32 bg-gray-200 rounded border border-gray-100"></div>
+          <div className="h-48 bg-gray-200 rounded border border-gray-100"></div>
         </div>
       </main>
     </div>
   </div>
 );
 
-const RelatedCourseCard = ({ course }: { course: any }) => (
-  <div className="border rounded-lg p-4 flex items-center gap-4">
-    <img src={course.thumbnail} alt={course.title} className="w-32 h-20 object-cover rounded" />
-    <div>
-      <h3 className="font-semibold">{course.title}</h3>
-      <Link href={`/courses/${course.slug}`} className="text-sm text-blue-600 hover:underline">
-        View Course
-      </Link>
-    </div>
-  </div>
-);
+const RelatedCourseCard = ({ course }: { course: any }) => {
+    // Helper to build the correct link based on context if needed, 
+    // or just link to the public course page.
+    return (
+        <div className="border border-gray-200 rounded p-4 flex items-center gap-4 bg-white hover:shadow transition-shadow">
+            {course.thumbnail ? (
+                 <img src={course.thumbnail} alt={course.title} className="w-24 h-16 object-cover rounded" />
+            ) : (
+                <div className="w-24 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </div>
+            )}
+            <div>
+            <h3 className="font-semibold text-gray-900 line-clamp-1">{course.title}</h3>
+            <Link href={`/courses/${course.slug}`} target="_blank" className="text-sm font-medium text-[#2694C6] hover:underline">
+                View Course Page
+            </Link>
+            </div>
+        </div>
+    );
+};
 
 // ---------------------------------------------------
 // MAIN PAGE: Tutor Event Preview
@@ -238,7 +243,8 @@ export default function TutorEventPreviewPage() {
       setError(null);
 
       try {
-        const res = await api.get(`/events/tutors/${slug}/`);
+        // ✅ CORRECTED API ENDPOINT to match backend router
+        const res = await api.get(`/events/tutor-events/${slug}/`);
         setEvent(res.data);
       } catch (err: any) {
         console.error("Failed to fetch event:", err);
@@ -253,110 +259,129 @@ export default function TutorEventPreviewPage() {
 
   const makeContextLink = (path: string) => {
     if (!activeSlug) return path;
-    if (path.startsWith(`/${activeSlug}`)) return path;
-    return `/${activeSlug}${path}`;
+    // If path already has org prefix, don't add it again
+    if (path.startsWith(`/org/${activeSlug}`)) return path;
+    // Ensure we don't double-slash
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `/org/${activeSlug}${cleanPath}`;
   };
 
   if (loading)
     return (
-      <div className="bg-white text-gray-800 font-sans">
+      <div className="bg-gray-50 min-h-screen">
         <EventDetailsLoading />
       </div>
     );
 
   if (error)
     return (
-      <div className="bg-white text-gray-800 font-sans min-h-screen flex items-center justify-center">
-        <p className="text-red-500 text-lg">{error}</p>
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow-sm text-center max-w-md">
+             <div className="text-red-500 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+             </div>
+            <p className="text-gray-900 font-medium text-lg">{error}</p>
+        </div>
       </div>
     );
 
-  if (!event)
-    return (
-      <div className="bg-white text-gray-800 font-sans min-h-screen flex items-center justify-center">
-        <p className="text-gray-500 text-lg">Event details could not be loaded.</p>
-      </div>
-    );
+  if (!event) return null;
 
   return (
-    <div className="bg-white text-gray-800 font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="bg-gray-50 min-h-screen font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 pb-16">
+        
         {/* Preview Mode Banner */}
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg flex items-center">
-          <Eye className="w-5 h-5 mr-3 text-yellow-700" />
-          <div className="text-yellow-800">
-            <span className="font-semibold">Preview Mode:</span> This is how your event will look.
-            Use the sidebar to edit or view attendees.
+        <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 flex items-start sm:items-center shadow">
+          <Eye className="w-5 h-5 mr-3 text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" />
+          <div className="text-amber-800 text-sm">
+            <strong>Tutor Preview Mode:</strong> This is exactly how learners will see your event page.
           </div>
         </div>
 
         <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
-          {/* Sidebar */}
-          <aside className="mt-2 lg:mt-0 order-2 lg:order-1">
+          
+          {/* Sidebar (Right on Desktop) */}
+          <aside className="lg:col-span-1 lg:order-2 order-1 mb-8 lg:mb-0">
             <TutorActionSidebar event={event} makeContextLink={makeContextLink} />
           </aside>
 
-          {/* Main Content */}
-          <main className="lg:col-span-2 order-1 lg:order-2">
-            <div className="aspect-video bg-gray-100 rounded-md mb-6 overflow-hidden">
-              <Image
-                src={event.banner_image || "/placeholder.jpg"}
-                alt={event.title}
-                width={1280}
-                height={720}
-                className="w-full h-full object-cover rounded-md"
-                priority
-              />
+          {/* Main Content (Left on Desktop) */}
+          <main className="lg:col-span-2 lg:order-1 order-2">
+            <div className="aspect-video bg-gray-900 rounded-md mb-8 overflow-hidden shadow">
+                {event.banner_image ? (
+                    <Image
+                        src={event.banner_image}
+                        alt={event.title}
+                        width={1280}
+                        height={720}
+                        className="w-full h-full object-cover"
+                        priority
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500">
+                         <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">{event.title}</h1>
-            <p className="text-lg text-gray-600 mb-4">{event.overview || "No overview available."}</p>
+            <div className="bg-white rounded p-8 shadow border border-gray-200 mb-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">{event.title}</h1>
+                <p className="text-lg text-gray-600 mb-6 leading-relaxed">{event.overview || "No overview available."}</p>
 
-            <p className="text-sm text-gray-500 mb-6">
-              Organizer:{" "}
-              <span className="font-semibold text-[#2694C6]">
-                {event.organizer_name || "Unknown"}
-              </span>{" "}
-              | Type: <span className="capitalize">{event.event_type}</span>
-            </p>
+                <div className="flex flex-wrap items-center text-sm text-gray-500 pt-6 border-t border-gray-100">
+                    <div className="mr-6 mb-2">
+                        <span className="text-gray-400 mr-2">Organizer:</span>
+                        <span className="font-semibold text-gray-900">{event.organizer_name || "Unknown"}</span>
+                    </div>
+                    <div className="mb-2">
+                        <span className="text-gray-400 mr-2">Type:</span>
+                        <span className="font-semibold text-gray-900 capitalize">{event.event_type}</span>
+                    </div>
+                </div>
+            </div>
 
             {event.agenda?.length > 0 && (
-              <div className="border border-gray-200 rounded p-6 my-6">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">Event Agenda</h2>
+              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
+                <h2 className="text-xl font-bold mb-6 text-gray-900">Event Agenda</h2>
                 <EventAgenda agenda={event.agenda} />
               </div>
             )}
 
             {event.learning_objectives?.length > 0 && (
-              <div className="border border-gray-200 rounded p-6 my-8">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">Learning Objectives</h2>
-                <ul className="list-disc pl-5 text-gray-700 space-y-1">
+              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
+                <h2 className="text-xl font-bold mb-4 text-gray-900">What You'll Learn</h2>
+                <ul className="space-y-3">
                   {event.learning_objectives.map((obj) => (
-                    <li key={obj.id}>{obj.text}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {event.rules?.length > 0 && (
-              <div className="border border-gray-200 rounded p-6 my-8">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">Event Rules</h2>
-                <ul className="list-disc pl-5 text-gray-700 space-y-2">
-                  {event.rules.map((rule) => (
-                    <li key={rule.id}>
-                      <strong>{rule.title}: </strong>
-                      {rule.text}
+                    <li key={obj.id} className="flex items-start">
+                        <svg className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-gray-700">{obj.text}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            <EventDescription html={event.description} />
+            {event.rules?.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
+                <h2 className="text-xl font-bold mb-4 text-gray-900">Event Rules</h2>
+                <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                  {event.rules.map((rule) => (
+                    <li key={rule.id}>
+                      <strong>{rule.title}: </strong>{rule.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
+                 <EventDescription html={event.description} />
+            </div>
 
             {event.course && (
-              <div className="mt-12">
-                <h2 className="text-xl font-bold mb-4">Related Course:</h2>
+              <div className="mt-10">
+                <h2 className="text-lg font-bold mb-4 text-gray-900">Related Course</h2>
                 <RelatedCourseCard course={event.course} />
               </div>
             )}

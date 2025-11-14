@@ -1,5 +1,5 @@
-import TutorEventPreview from "@/components/events/TutorEventPreview";
+import TutorEventPreviewPage from "@/components/events/TutorEventPreview";
 
-export default function GlobalEventPreviewPage() {
-  return <TutorEventPreview />;
+export default function GlobalCoursePreviewPage() {
+  return <TutorEventPreviewPage />;
 }

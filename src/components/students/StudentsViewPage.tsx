@@ -195,13 +195,19 @@ export default function StudentsViewPage() {
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={isProcessing}>
-                      {isProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <MoreHorizontal className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <Button
+  variant="ghost"
+  size="icon"
+  disabled={isProcessing}
+  className="flex items-center justify-center focus:outline-none focus:ring-0 focus:ring-offset-0 active:outline-none active:ring-0"
+>
+  {isProcessing ? (
+    <Loader2 className="h-4 w-4 animate-spin" />
+  ) : (
+    <MoreHorizontal className="h-4 w-4" />
+  )}
+</Button>
+
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {enrollment.status === "active" && (

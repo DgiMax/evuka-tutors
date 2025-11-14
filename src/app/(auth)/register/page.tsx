@@ -53,8 +53,8 @@ export default function RegisterPage() {
   return (
     <PublicRoute>
       <div className="flex items-center flex-col justify-center">
-        <h1 className="text-2xl font-bold text-[#2694C6] mb-2">
-          Create Your Account
+        <h1 className="text-3xl font-bold text-[#2694C6] mb-2">
+          Register
         </h1>
 
         <div className="w-full max-w-xl p-4 mx-4 bg-white rounded border border-gray-200">
@@ -127,12 +127,6 @@ export default function RegisterPage() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* Social Logins and Link to Sign In */}
-        <div className="mt-6 text-center">
-           <p className="text-gray-500 text-sm mb-4">Or Continue With</p>
-           {/* ... your social login buttons ... */}
         </div>
 
         <div className="mt-8 text-center">

@@ -1,5 +1,5 @@
-import CourseLearningView from "@/components/create-course/CoursePreviewView";
+import CoursePreviewDetailView from "@/components/course/CoursePreviewDetailView";
 
-export default function GlobalCourseLearningPage() {
-  return <CourseLearningView />;
+export default function GlobalCoursePreviewPage() {
+  return <CoursePreviewDetailView />;
 }

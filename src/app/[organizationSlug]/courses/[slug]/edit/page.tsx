@@ -1,6 +1,6 @@
 'use client';
 
-import CreateCourseView from "@/components/create-course/CreateCourseView";
+import CreateCourseView from "@/components/course/CreateCourseView";
 
 import { useParams } from "next/navigation";
 

@@ -23,7 +23,7 @@ export default function GlobalUILayout({ children, slug = null }: GlobalUILayout
       <SidebarNav isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
 
       {/* Main content */}
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-14">
         <div className="bg-gray-50 min-h-screen">
         <OrgContextUpdater slug={slug} />
         {children}

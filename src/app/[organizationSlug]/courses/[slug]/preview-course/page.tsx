@@ -1,4 +1,4 @@
-import CourseLearningView from "@/components/create-course/CoursePreviewView";
+import CourseLearningView from "@/components/course/CoursePreviewView";
 
 export default function OrgCourseLearningPage() {
   return <CourseLearningView />;

@@ -13,7 +13,7 @@ const CourseContentTabs = ({ activeTab, setActiveTab }: CourseContentTabsProps) 
   const tabs: TabType[] = ["Overview", "Q&A", "Notes", "Announcements"];
 
   return (
-    <div className="sticky top-[64px] z-30 bg-white border-b border-gray-200 shadow-sm">
+    <div className="border-b border-gray-200">
       <nav className="flex space-x-6 px-4 md:px-8" aria-label="Tabs">
         {tabs.map((tab) => (
           <button

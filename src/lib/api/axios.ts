@@ -1,3 +1,4 @@
+// lib/api/axios.ts
 import axios from "axios";
 
 const api = axios.create({
@@ -5,17 +6,29 @@ const api = axios.create({
   withCredentials: true,
   headers: {
     Accept: "application/json",
-    "Content-Type": "application/json", // keep default JSON for normal requests
+    "Content-Type": "application/json", // Default for normal requests
   },
+  timeout: 15000, // 15s timeout is good for production
 });
 
-// 🧩 Interceptor: Automatically handle FormData uploads
+// 🧩 Interceptor: Handle FormData uploads cleanly
 api.interceptors.request.use((config) => {
-  // If the request contains FormData, remove the JSON Content-Type
   if (config.data instanceof FormData) {
-    delete config.headers["Content-Type"];
+    delete config.headers["Content-Type"]; // Let browser set correct multipart boundary
   }
   return config;
 });
+
+// 🧩 Interceptor: Detect expired sessions globally
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Trigger an event so AuthContext can handle it
+      window.dispatchEvent(new Event("auth-expired"));
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

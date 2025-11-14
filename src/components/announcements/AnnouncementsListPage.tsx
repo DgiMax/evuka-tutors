@@ -1,11 +1,10 @@
-// app/(tutor)/announcements/page.tsx (or similar path)
+// app/(tutor)/announcements/page.tsx
 
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/AuthContext";
 import {
   Megaphone,
   Loader2,
@@ -18,6 +17,9 @@ import {
   Users,
   Building,
   Save,
+  Pencil,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 // Context and API
@@ -27,7 +29,7 @@ import api from "@/lib/api/axios";
 // Shadcn UI Components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -61,35 +63,36 @@ const audienceConfig = {
   all_org_courses: "All Organization Courses",
 };
 
-// --- Detail Modal Component ---
+// --- Detail Modal Component (Unchanged) ---
+// ... (Keep your existing AnnouncementDetailModal here) ...
 interface AnnouncementDetailModalProps {
-  announcement: Announcement;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+    announcement: Announcement;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
 }
-
+  
 function AnnouncementDetailModal({ announcement, open, onOpenChange }: AnnouncementDetailModalProps) {
     const status = statusConfig[announcement.status] || statusConfig.draft;
     const audience = (audienceConfig as any)[announcement.audience_type] || "Unknown Audience";
 
-  return (
+    return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] rounded">
+        <DialogContent className="sm:max-w-[600px] rounded">
         <DialogHeader>
-          <DialogTitle className="text-xl">{announcement.title}</DialogTitle>
-          <DialogDescription>
+            <DialogTitle className="text-xl">{announcement.title}</DialogTitle>
+            <DialogDescription>
             Created {format(new Date(announcement.created_at), "PPP")}
-          </DialogDescription>
+            </DialogDescription>
         </DialogHeader>
         <div className="mt-4 space-y-4">
-          <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
             <Badge className={cn("text-white", status.color)}>
-              <status.icon className="mr-1.5" size={14} />
-              {status.label}
+                <status.icon className="mr-1.5" size={14} />
+                {status.label}
             </Badge>
             <Badge variant="outline">
-              <Users className="mr-1.5" size={14} />
-              {audience}
+                <Users className="mr-1.5" size={14} />
+                {audience}
             </Badge>
             {announcement.organization_name && (
                 <Badge variant="outline" className="border-blue-500 text-blue-600">
@@ -97,22 +100,70 @@ function AnnouncementDetailModal({ announcement, open, onOpenChange }: Announcem
                     {announcement.organization_name}
                 </Badge>
             )}
-          </div>
-          
-          <div className="prose prose-sm dark:prose-invert max-w-full max-h-[300px] overflow-y-auto rounded border p-3 bg-gray-50">
+            </div>
+            
+            <div className="prose prose-sm dark:prose-invert max-w-full max-h-[300px] overflow-y-auto rounded border p-3 bg-gray-50">
             {/* We'd use a Markdown renderer here in a real app */}
-            <p>{announcement.content}</p>
-          </div>
+            <p className="whitespace-pre-wrap">{announcement.content}</p>
+            </div>
 
-          <div className="text-xs text-gray-500 space-y-1">
-             {announcement.status === 'scheduled' && announcement.publish_at && (
+            <div className="text-xs text-gray-500 space-y-1">
+                {announcement.status === 'scheduled' && announcement.publish_at && (
                 <p>Scheduled to publish on: {format(new Date(announcement.publish_at), "PPP 'at' p")}</p>
-             )}
-             {announcement.status === 'published' && announcement.published_at && (
+                )}
+                {announcement.status === 'published' && announcement.published_at && (
                 <p>Published on: {format(new Date(announcement.published_at), "PPP 'at' p")}</p>
-             )}
-          </div>
+                )}
+            </div>
         </div>
+        </DialogContent>
+    </Dialog>
+    );
+}
+
+// --- NEW: Delete Confirmation Modal ---
+interface DeleteAnnouncementDialogProps {
+  announcement: Announcement | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+}
+
+function DeleteAnnouncementDialog({
+  announcement,
+  open,
+  onOpenChange,
+  onConfirm,
+  isDeleting,
+}: DeleteAnnouncementDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px] rounded">
+        <DialogHeader>
+          <div className="flex items-center gap-3 text-red-500 mb-2">
+            <AlertTriangle size={24} />
+            <DialogTitle className="text-xl">Delete Announcement?</DialogTitle>
+          </div>
+          <DialogDescription>
+            Are you sure you want to delete <strong>"{announcement?.title}"</strong>?
+            This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4 flex gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting} className="rounded">
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={isDeleting} className="rounded bg-red-600 hover:bg-red-700">
+            {isDeleting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+              </>
+            ) : (
+              "Delete Forever"
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -124,26 +175,46 @@ export default function AnnouncementsListPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  
+  // Delete state
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { activeSlug } = useActiveOrg();
 
-  useEffect(() => {
-    const fetchAnnouncements = async () => {
-      setIsLoading(true);
-      try {
-        // This endpoint is context-aware and role-aware
-        const response = await api.get("/announcements/tutor/manage/");
-        setAnnouncements(response.data);
-      } catch (error) {
-        console.error("Failed to fetch announcements:", error);
-        toast.error("Could not load your announcements.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchAnnouncements = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get("/announcements/tutor/manage/");
+      setAnnouncements(response.data);
+    } catch (error) {
+      console.error("Failed to fetch announcements:", error);
+      toast.error("Could not load your announcements.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchAnnouncements();
-  }, [activeSlug]); // Refetch when context changes
+  }, [activeSlug]);
+
+  const handleDelete = async () => {
+    if (!announcementToDelete) return;
+    setIsDeleting(true);
+    try {
+        await api.delete(`/announcements/tutor/manage/${announcementToDelete.id}/`);
+        toast.success("Announcement deleted successfully.");
+        // Refresh list locally
+        setAnnouncements((prev) => prev.filter((a) => a.id !== announcementToDelete.id));
+        setAnnouncementToDelete(null);
+    } catch (error: any) {
+        console.error("Delete failed:", error);
+        toast.error(error.response?.data?.detail || "Failed to delete announcement.");
+    } finally {
+        setIsDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -185,40 +256,63 @@ export default function AnnouncementsListPage() {
             <div className="divide-y divide-gray-200 border rounded-lg overflow-hidden">
               {announcements.map((ann) => {
                 const status = statusConfig[ann.status] || statusConfig.draft;
+                // Optional: Disable edit/delete for certain statuses if your backend requires it
+                // const canEdit = ann.status === 'draft' || ann.status === 'scheduled'; 
+                const canEdit = true; // Assuming tutors can always edit their own, even if it triggers re-approval
+
                 return (
-                  <div key={ann.id} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between hover:bg-gray-50/50">
-                    <div className="flex-1 mb-2 md:mb-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className={cn("h-2 w-2 rounded-full", status.color)}></span>
-                            <h3 className="font-semibold text-gray-900">{ann.title}</h3>
+                  <div key={ann.id} className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between hover:bg-gray-50/50 transition-colors">
+                    <div className="flex-1 mb-3 md:mb-0">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <span className={cn("h-2.5 w-2.5 rounded-full", status.color)} title={status.label}></span>
+                            <h3 className="font-semibold text-gray-900 line-clamp-1">{ann.title}</h3>
                             {ann.organization_name && (
-                                <Badge variant="outline" className="text-xs font-normal">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal text-gray-500">
                                     {ann.organization_name}
                                 </Badge>
                             )}
                         </div>
                       
-                      <p className="text-sm text-gray-500">
-                        Status: <span className="font-medium">{status.label}</span>
-                        <span className="mx-2">|</span>
-                        Created: {format(new Date(ann.created_at), "dd MMM yyyy")}
-                      </p>
+                      <div className="flex items-center text-sm text-gray-500 gap-3">
+                        <span className={cn("flex items-center text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100", status.color.replace("bg-", "text-").replace("500", "700").replace("600", "800"))}>
+                            {status.label}
+                        </span>
+                        <span>•</span>
+                        <span>{format(new Date(ann.created_at), "MMM d, yyyy")}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                        {/* TODO: Add 'Edit' button
-                          <Button variant="outline" size="sm" className="rounded" disabled>
-                            <Edit2 className="mr-1.5" size={14} />
-                            Edit
-                          </Button> 
-                        */}
+
+                    <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="rounded"
+                            className="h-8 px-2 text-gray-500 hover:text-[#2694C6] hover:bg-blue-50 rounded"
                             onClick={() => setSelectedAnnouncement(ann)}
+                            title="View Details"
                         >
-                            <Eye className="mr-1.5" size={14} />
-                            View
+                            <Eye size={16} />
+                        </Button>
+
+                        <Link href={`/announcements/${ann.id}/edit`} passHref>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded"
+                                disabled={!canEdit}
+                                title="Edit"
+                            >
+                                <Pencil size={16} />
+                            </Button>
+                        </Link>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded"
+                            onClick={() => setAnnouncementToDelete(ann)}
+                            title="Delete"
+                        >
+                            <Trash2 size={16} />
                         </Button>
                     </div>
                   </div>
@@ -234,13 +328,18 @@ export default function AnnouncementsListPage() {
         <AnnouncementDetailModal
           announcement={selectedAnnouncement}
           open={!!selectedAnnouncement}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedAnnouncement(null);
-            }
-          }}
+          onOpenChange={(open) => { if (!open) setSelectedAnnouncement(null); }}
         />
       )}
+
+      {/* --- Delete Modal --- */}
+      <DeleteAnnouncementDialog 
+        announcement={announcementToDelete}
+        open={!!announcementToDelete}
+        onOpenChange={(open) => { if (!open) setAnnouncementToDelete(null); }}
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
     </>
   );
 }

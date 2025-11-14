@@ -22,19 +22,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       }}
     >
       {/* Auth Page Content */}
-      <div className="w-full max-w-md px-6">{children}</div>
+      <div className="w-full max-w-2xl px-6">{children}</div>
 
-      {/* Back to Home Button */}
-      <Link
-        href="/"
-        className="fixed bottom-6 left-6 px-4 py-2 font-medium text-gray-800 border border-gray-300 hover:opacity-90 transition"
-        style={{
-          backgroundColor: "#FFEF00",
-          borderRadius: "2px",
-        }}
-      >
-        ← Back to Home
-      </Link>
+
     </div>
   );
 }

@@ -1,27 +1,26 @@
 "use client";
 
 import React from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, Pencil } from "lucide-react";
 import Link from "next/link";
 
-// 1. Define the data structure for the event card
 export interface TutorEvent {
-  slug: string;
-  title: string;
-  banner_image?: string;
-  overview: string;
-  start_time: string;
-  computed_status: string; // From your EventListSerializer
+  slug: string;
+  title: string;
+  banner_image?: string;
+  overview: string;
+  start_time: string;
+  computed_status: string;
 }
 
 interface Props {
-  event: TutorEvent;
-  makeContextLink: (path: string) => string;
+  event: TutorEvent;
+  makeContextLink: (path: string) => string;
 }
 
-// 2. Helper function to format the status badge
+// ✅ Helper for badge colors
 const getStatusClass = (status: string) => {
   switch (status) {
     case "scheduled":
@@ -42,69 +41,76 @@ const getStatusClass = (status: string) => {
 };
 
 export default function TutorEventCard({ event, makeContextLink }: Props) {
-  
-  const formattedStartDate = new Date(event.start_time).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const formattedStartDate = new Date(event.start_time).toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }
+  );
 
   return (
-    <Card className="rounded border border-gray-200 bg-white overflow-hidden flex flex-col p-2">
-      {/* Banner Image */}
-      {event.banner_image ? (
-        <img
-          src={event.banner_image}
-          alt={event.title}
-          className="w-full h-36 object-cover"
-        />
-      ) : (
-        <div className="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400">
-          <CalendarDays className="h-6 w-6" />
-        </div>
-      )}
+    <Card className="flex flex-row overflow-hidden border border-gray-200 rounded bg-white hover:shadow-sm transition-shadow h-36">
+      {/* --- LEFT: Banner / Icon */}
+      <div className="w-32 h-full flex-shrink-0">
+        {event.banner_image ? (
+          <img
+            src={event.banner_image}
+            alt={event.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+            <CalendarDays className="h-6 w-6" />
+          </div>
+        )}
+      </div>
 
-      {/* Content */}
-      <CardContent className="p-1 flex flex-col flex-1 justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900 truncate">
-            {event.title}
-          </h3>
-          <p className="text-xs text-gray-500 mt-1">
-            {formattedStartDate}
+      {/* --- RIGHT: Details */}
+      <div className="flex flex-col justify-between flex-1 px-2 py-1 min-w-0">
+        {/* Title & Info */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 truncate">
+            {event.title}
+          </h3>
+          <p className="text-xs text-gray-500 mt-0.5">{formattedStartDate}</p>
+          <p className="text-xs text-gray-600 line-clamp-2 mt-1">
+            {event.overview || "No overview provided."}
           </p>
-          <p className="text-xs text-gray-600 line-clamp-2 mt-1">
-            {event.overview || "No overview provided."}
-          </p>
-        </div>
+        </div>
 
-        {/* Bottom row: status + buttons */}
-        <div className="flex items-center justify-between mt-3">
-          {/* Status */}
-          <span
-            className={`!text-[9px] font-medium px-3 py-1 rounded-full ${getStatusClass(
-              event.computed_status
-            )}`}
-          >
-            {/* Capitalize first letter */}
-            {event.computed_status.charAt(0).toUpperCase() + event.computed_status.slice(1).replace("_", " ")}
-          </span>
+        {/* Footer: Status + Actions */}
+        <div className="flex items-center justify-between mt-2">
+          <span
+            className={`text-[10px] font-medium px-2.5 py-0.5 rounded-full ${getStatusClass(
+              event.computed_status
+            )}`}
+          >
+            {event.computed_status
+              .charAt(0)
+              .toUpperCase() +
+              event.computed_status.slice(1).replace("_", " ")}
+          </span>
 
-          {/* Buttons */}
-          <div className="flex gap-2">
-            {/* Link to the public-facing event page */}
-            <Link href={makeContextLink(`/events/${event.slug}`)}>
-              <Button size="sm">View</Button>
-            </Link>
-            {/* Link to the edit page we created */}
-            <Link href={makeContextLink(`/tutor/events/${event.slug}/edit`)}>
-              <Button variant="secondary" size="sm">
-                <Pencil className="h-4 w-4 mr-1" /> Edit
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+          <div className="flex gap-1.5">
+            <Link href={makeContextLink(`/events/${event.slug}`)}>
+              <Button size="sm" className="h-7 px-3 text-[12px] rounded">
+                View
+              </Button>
+            </Link>
+            <Link href={makeContextLink(`/events/${event.slug}/edit`)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 px-3 text-[12px] rounded"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 }
