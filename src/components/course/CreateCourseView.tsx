@@ -123,6 +123,43 @@ const getExistingFileUrl = (fieldValue: string | null): string | null => {
   return null;
 };
 
+const OptionSchema = z.object({
+  id: z.number().optional(), // Used for editing existing options
+  text: z.string().min(1, "Option text is required."),
+  is_correct: z.boolean().default(false),
+});
+
+const QuestionSchema = z.object({
+  id: z.number().optional(), // Used for editing existing questions
+  text: z.string().min(1, "Question text is required."),
+  question_type: z.enum(["mcq", "text"]).default("mcq"),
+  score_weight: z.number().min(1, "Score must be at least 1.").default(1),
+  order: z.number().optional(),
+  instructor_hint: z.string().optional(),
+  options: z.array(OptionSchema).optional(), // Required for MCQ type
+});
+
+const QuizSchema = z.object({
+  id: z.number().optional(), // Used for editing existing quizzes
+  title: z.string().min(3, "Quiz title is required."),
+  description: z.string().max(500).optional(),
+  order: z.number().optional(),
+  max_score: z.number().min(1, "Max score must be at least 1.").default(10),
+  time_limit_minutes: z.number().optional().nullable(),
+  max_attempts: z.number().min(1, "Attempts must be at least 1.").default(3),
+  questions: z.array(QuestionSchema).min(1, "A quiz must have at least one question."),
+});
+
+// --- 📝 ASSIGNMENT SCHEMA DEFINITION ---
+
+const AssignmentSchema = z.object({
+  id: z.number().optional(),
+  title: z.string().min(5, "Assignment title is required."),
+  description: z.string().min(10, "Description is required."),
+  due_date: z.string().optional().nullable(),
+  max_score: z.number().min(1, "Max score is required.").default(100),
+});
+
 const courseFormSchema = z.object({
   title: z
     .string()
@@ -153,11 +190,13 @@ const courseFormSchema = z.object({
       z.object({
         title: z.string().min(3, "Module title is required.").max(100),
         description: z.string().max(500).optional(),
+        assignments: z.array(AssignmentSchema).optional(),
         lessons: z
           .array(
             z.object({
               title: z.string().min(3, "Lesson title is required.").max(100),
               video_file: z.any().optional(),
+              quizzes: z.array(QuizSchema).optional(),
             })
           )
           .min(1, "Module must have at least one lesson."),
@@ -291,6 +330,14 @@ const ModuleLessons = ({
                   </div>
                 )}
 
+                <QuizBuilder
+                    moduleIndex={moduleIndex}
+                    lessonIndex={lessonIndex}
+                    control={control}
+                    watch={watch}
+                    setValue={setValue}
+                />
+
                 <div className="text-right mt-2">
                   <Button
                     type="button"
@@ -320,6 +367,435 @@ const ModuleLessons = ({
     </div>
   );
 };
+
+type AssignmentBuilderProps = {
+  moduleIndex: number;
+  control: Control<CourseFormValues>;
+};
+
+const AssignmentBuilder = ({ moduleIndex, control }: AssignmentBuilderProps) => {
+  const {
+    fields: assignments,
+    append: appendAssignment,
+    remove: removeAssignment,
+  } = useFieldArray({
+    control,
+    name: `modules.${moduleIndex}.assignments`,
+  });
+
+  return (
+    <div className="pt-3 border-t mt-4 space-y-3">
+      <h4 className="font-medium text-sm text-gray-700 flex items-center">
+        <Send size={16} className="mr-1" /> Module Assignment (Optional)
+      </h4>
+      
+      {assignments.map((assignment, index) => (
+        <Card key={assignment.id} className="p-3 bg-white border shadow-sm">
+          <div className="flex justify-between items-start mb-2 border-b pb-2">
+            <h5 className="font-semibold text-sm">Assignment {index + 1}: {assignment.title || "New Assignment"}</h5>
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeAssignment(index)}>
+              <Trash2 size={14} className="text-red-500 hover:text-red-600" />
+            </Button>
+          </div>
+          
+          <FormField
+            control={control}
+            name={`modules.${moduleIndex}.assignments.${index}.title`}
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel className="text-xs">Title</FormLabel>
+                <FormControl><ShadcnInput placeholder="Project Name" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name={`modules.${moduleIndex}.assignments.${index}.description`}
+            render={({ field }) => (
+              <FormItem className="mb-2">
+                <FormLabel className="text-xs">Description</FormLabel>
+                <FormControl><Textarea placeholder="Full instructions for the student." {...field} rows={3} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name={`modules.${moduleIndex}.assignments.${index}.max_score`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-xs">Max Score</FormLabel>
+                <FormControl>
+                    <ShadcnInput 
+                        type="number" 
+                        min={1} 
+                        placeholder="100" 
+                        {...field} 
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </Card>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="rounded"
+        onClick={() => appendAssignment({ title: "", description: "", max_score: 100 })}
+        disabled={assignments.length > 0} // Only allow one assignment per module for simplicity
+      >
+        <Plus className="mr-2" size={16} /> Add Module Assignment
+      </Button>
+    </div>
+  );
+};
+
+// --- 2.1 OPTION BUILDER COMPONENT ---
+
+type OptionBuilderProps = {
+  moduleIndex: number;
+  lessonIndex: number;
+  quizIndex: number;
+  questionIndex: number;
+  control: Control<CourseFormValues>;
+
+  setValue: (
+    name: Path<CourseFormValues>,
+    value: any,
+    options?: { shouldValidate?: boolean; shouldDirty?: boolean }
+  ) => void;
+};
+
+const OptionBuilder = ({
+  moduleIndex,
+  lessonIndex,
+  quizIndex,
+  questionIndex,
+  control,
+  setValue,
+}: OptionBuilderProps) => {
+  const {
+    fields: options,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({
+    control,
+    name: `modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions.${questionIndex}.options`,
+  });
+
+  const handleCorrectChange = (newIndex: number) => {
+    // Logic to ensure only one option is correct
+    options.forEach((_, index) => {
+      setValue( 
+        `modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions.${questionIndex}.options.${index}.is_correct` as Path<CourseFormValues>,
+        index === newIndex,
+        { shouldValidate: true }
+      );
+    });
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t space-y-2">
+      <h6 className="text-xs font-semibold">Options (Select Correct)</h6>
+      {options.map((optionField, optionIndex) => (
+        <div key={optionField.id} className="flex items-center gap-2">
+          <FormField
+            control={control}
+            name={`modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions.${questionIndex}.options.${optionIndex}.is_correct`}
+            render={({ field }) => (
+              <FormItem className="flex items-center space-x-2 space-y-0">
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        handleCorrectChange(optionIndex);
+                      }
+                    }}
+                    aria-label={`Mark Option ${optionIndex + 1} as Correct`}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name={`modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions.${questionIndex}.options.${optionIndex}.text`}
+            render={({ field }) => (
+              <FormItem className="flex-grow">
+                <FormControl><ShadcnInput placeholder={`Option ${optionIndex + 1}`} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeOption(optionIndex)}
+            disabled={options.length <= 2}
+          >
+            <Trash2 size={14} className="text-gray-400 hover:text-red-500" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="h-6 text-xs p-0"
+        onClick={() => appendOption({ text: `Option ${options.length + 1}`, is_correct: false })}
+        disabled={options.length >= 6}
+      >
+        <Plus size={14} className="mr-1" /> Add Option
+      </Button>
+    </div>
+  );
+};
+
+
+// --- 2.2 QUESTION BUILDER COMPONENT ---
+
+type QuestionBuilderProps = {
+  moduleIndex: number;
+  lessonIndex: number;
+  quizIndex: number;
+  control: Control<CourseFormValues>;
+  watch: UseFormWatch<CourseFormValues>;
+
+  setValue: (
+    name: Path<CourseFormValues>,
+    value: any,
+    options?: { shouldValidate?: boolean; shouldDirty?: boolean }
+  ) => void;
+};
+
+const QuestionBuilder = ({
+  moduleIndex,
+  lessonIndex,
+  quizIndex,
+  control,
+  watch,
+  setValue,
+}: QuestionBuilderProps) => {
+  const {
+    fields: questions,
+    append: appendQuestion,
+    remove: removeQuestion,
+  } = useFieldArray({
+    control,
+    name: `modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions`,
+  });
+
+  return (
+    <div className="pt-3 border-t space-y-3">
+      <h5 className="font-medium text-sm text-gray-700">Questions</h5>
+
+      {questions.map((questionField, questionIndex) => {
+        const fieldPath = `modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.questions.${questionIndex}` as Path<CourseFormValues>;
+        const watchedType = watch(`${fieldPath}.question_type` as Path<CourseFormValues>);
+        
+        return (
+          <Card key={questionField.id} className="p-3 bg-gray-50 border shadow-none">
+            <div className="flex justify-between items-start mb-2">
+              <span className="font-semibold text-sm">Question {questionIndex + 1}</span>
+              <Button type="button" variant="ghost" size="icon" onClick={() => removeQuestion(questionIndex)} disabled={questions.length <= 1}>
+                <Trash2 size={14} className="text-gray-500 hover:text-red-600" />
+              </Button>
+            </div>
+
+            <FormField control={control} name={`${fieldPath}.text` as Path<CourseFormValues>} render={({ field }) => (
+                <FormItem className="mb-2">
+                  <FormLabel className="text-xs">Question Text</FormLabel>
+                  <FormControl><Textarea placeholder="What is the main topic of this lesson?" {...field} rows={2} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={control} name={`${fieldPath}.question_type` as Path<CourseFormValues>} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="mcq">Multiple Choice</SelectItem>
+                        <SelectItem value="text">Text Answer (Manual Grading)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField control={control} name={`${fieldPath}.score_weight` as Path<CourseFormValues>} render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Score</FormLabel>
+                    <FormControl>
+                      <ShadcnInput type="number" min={1} placeholder="1" {...field} onChange={(e) => field.onChange(Number(e.target.value))} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {watchedType === "mcq" && (
+              <OptionBuilder
+                moduleIndex={moduleIndex}
+                lessonIndex={lessonIndex}
+                quizIndex={quizIndex}
+                questionIndex={questionIndex}
+                control={control}
+                setValue={setValue}
+              />
+            )}
+            
+            {watchedType === "text" && (
+                <FormField control={control} name={`${fieldPath}.instructor_hint` as Path<CourseFormValues>} render={({ field }) => (
+                        <FormItem className="mt-3">
+                            <FormLabel className="text-xs">Instructor Hint (for grading)</FormLabel>
+                            <FormControl><ShadcnInput placeholder="Expected short answer or notes for grader" {...field} /></FormControl>
+                        </FormItem>
+                    )}
+                />
+            )}
+          </Card>
+        );
+      })}
+      <Button type="button" variant="outline" size="sm" className="rounded w-full" onClick={() => appendQuestion({
+            text: `New Question ${questions.length + 1}`,
+            question_type: "mcq",
+            score_weight: 1,
+            options: [{ text: "Correct Option", is_correct: true }, { text: "Wrong Option", is_correct: false }],
+          })}
+      >
+        <Plus className="mr-2" size={16} /> Add Question
+      </Button>
+    </div>
+  );
+};
+
+
+// --- 2.3 QUIZ BUILDER COMPONENT (Lesson-Level) ---
+
+type QuizBuilderProps = {
+  moduleIndex: number;
+  lessonIndex: number;
+  control: Control<CourseFormValues>;
+  watch: UseFormWatch<CourseFormValues>;
+
+  setValue: (
+        name: Path<CourseFormValues>,
+        value: any,
+        options?: { shouldValidate?: boolean; shouldDirty?: boolean }
+    ) => void;
+};
+
+const QuizBuilder = ({
+  moduleIndex,
+  lessonIndex,
+  control,
+  watch,
+  setValue,
+}: QuizBuilderProps) => {
+  const {
+    fields: quizzes,
+    append: appendQuiz,
+    remove: removeQuiz,
+  } = useFieldArray({
+    control,
+    name: `modules.${moduleIndex}.lessons.${lessonIndex}.quizzes`,
+  });
+
+  return (
+    <div className="pl-4 border-l border-gray-300 ml-2 mt-4 space-y-4">
+      <h4 className="font-medium text-sm text-gray-700 flex items-center">
+        <BookOpen size={16} className="mr-1" /> Lesson Quiz (Optional)
+      </h4>
+
+      {quizzes.map((quizField, quizIndex) => (
+        <Card key={quizField.id} className="bg-white border rounded shadow-sm p-4 space-y-3">
+          
+          <div className="flex justify-between items-start border-b pb-2 mb-2">
+            <FormField control={control} name={`modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.title`} render={({ field }) => (
+                <FormItem className="flex-grow mr-2">
+                  <FormLabel className="text-sm">Quiz Title</FormLabel>
+                  <FormControl><ShadcnInput placeholder="e.g., Chapter 1 Knowledge Check" {...field} className="text-md font-semibold h-auto" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="button" variant="ghost" size="icon" onClick={() => removeQuiz(quizIndex)}>
+              <Trash2 className="text-red-500" size={16} />
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField control={control} name={`modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.max_attempts`} render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Max Attempts</FormLabel>
+                  <FormControl><ShadcnInput type="number" min={1} placeholder="3" {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField control={control} name={`modules.${moduleIndex}.lessons.${lessonIndex}.quizzes.${quizIndex}.time_limit_minutes`} render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Time Limit (Mins, Optional)</FormLabel>
+                  <FormControl><ShadcnInput type="number" min={1} placeholder="60" {...field} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <QuestionBuilder
+            moduleIndex={moduleIndex}
+            lessonIndex={lessonIndex}
+            quizIndex={quizIndex}
+            control={control}
+            watch={watch}
+            setValue={setValue}
+          />
+        </Card>
+      ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="rounded"
+        onClick={() => appendQuiz({
+            title: `New Quiz ${quizzes.length + 1}`,
+            max_score: 10,
+            max_attempts: 3,
+            questions: [{
+                text: "Sample Question",
+                question_type: "mcq",
+                score_weight: 1,
+                options: [{ text: "Option A", is_correct: true }, { text: "Option B", is_correct: false }],
+            }],
+        })}
+        disabled={quizzes.length > 0} // Only allow one quiz per lesson for simplicity
+      >
+        <Plus className="mr-2" size={16} /> Add Lesson Quiz
+      </Button>
+    </div>
+  );
+};
+
+// --- END 1.2 QUIZ BUILDERS ---
 
 
 // --- Main Component ---
@@ -483,17 +959,58 @@ useEffect(() => {
         price: course.price ? parseFloat(course.price) : undefined,
         promo_video: getExistingFileUrl(course.promo_video),
         thumbnail: getExistingFileUrl(course.thumbnail),
+        
         modules:
           course.modules?.map((mod: any) => ({
+            // --- MODULE LEVEL FIELDS ---
+            id: mod.id, // Ensure module ID is preserved for editing
             title: mod.title,
             description: mod.description,
+
+            // 1. MAP ASSIGNMENTS (Module Level)
+            assignments: mod.assignments?.map((assignment: any) => ({
+              id: assignment.id,
+              title: assignment.title,
+              description: assignment.description,
+              due_date: assignment.due_date,
+              max_score: assignment.max_score,
+            })) || [],
+
+            // 2. MAP LESSONS (Lesson Level)
             lessons:
               mod.lessons?.map((les: any) => ({
+                id: les.id, // Ensure lesson ID is preserved
                 title: les.title,
                 video_file: getExistingFileUrl(les.video_file),
-              })) || [],
-          })) || [
-            { title: "", description: "", lessons: [{ title: "", video_file: null }] },
+
+                // 3. MAP QUIZZES (Lesson Level)
+                quizzes: les.quizzes?.map((quiz: any) => ({
+                  id: quiz.id,
+                  title: quiz.title,
+                  description: quiz.description,
+                  max_score: quiz.max_score,
+                  time_limit_minutes: quiz.time_limit_minutes,
+                  max_attempts: quiz.max_attempts,
+
+                  // 4. MAP QUESTIONS (Quiz Level)
+                  questions: quiz.questions?.map((question: any) => ({
+                    id: question.id,
+                    text: question.text,
+                    question_type: question.question_type,
+                    score_weight: question.score_weight,
+                    instructor_hint: question.instructor_hint,
+
+                    // 5. MAP OPTIONS (Question Level - for MCQ)
+                    options: question.options?.map((option: any) => ({
+                      id: option.id,
+                      text: option.text,
+                      is_correct: option.is_correct,
+                    })) || [],
+                  })) || [],
+                })) || [], // End Quizzes mapping
+              })) || [{ title: "", video_file: null }], // Default Lesson if none found
+          })) || [ // End Module mapping
+            { title: "", description: "", assignments: [], lessons: [{ title: "", video_file: null }] },
           ],
       });
     } catch (err) {
@@ -507,13 +1024,13 @@ useEffect(() => {
   };
 
   if (isEditMode && formOptions) {
-      // Only fetch if we are in edit mode AND options are loaded
-      fetchCourse();
-    } else {
-      // We are in create mode, or options aren't ready.
-      // We are NOT loading a course, so ensure isLoading is false.
-      setIsLoading(false); 
-    }
+    // Only fetch if we are in edit mode AND options are loaded
+    fetchCourse();
+  } else {
+    // We are in create mode, or options aren't ready.
+    // We are NOT loading a course, so ensure isLoading is false.
+    setIsLoading(false); 
+  }
 
 }, [isEditMode, courseSlug, formOptions, reset]);
 
@@ -585,8 +1102,14 @@ formData.append("price", data.price?.toString() || "0");
   // 🧠 Handle nested lesson files
   const modulesToSubmit = data.modules.map((mod, modIndex) => ({
     ...mod,
+    assignments: mod.assignments || [],
+
     lessons: mod.lessons.map((les, lesIndex) => {
-      const lessonData: any = { title: les.title };
+      const quizzesToSubmit = les.quizzes || [];
+      const lessonData: any = { 
+          title: les.title, 
+          quizzes: quizzesToSubmit 
+      };
       const videoFileValue = les.video_file;
 
       if (videoFileValue instanceof File) {
@@ -1099,9 +1622,12 @@ try {
                             moduleIndex={moduleIndex} 
                             control={form.control} 
                             watch={form.watch} 
-                            // 👇 ADD THIS LINE
                             setValue={form.setValue} 
                           />
+                          <AssignmentBuilder
+                                moduleIndex={moduleIndex}
+                                control={form.control}
+                            />
                         </CardContent>
                       </Card>
                     ))}

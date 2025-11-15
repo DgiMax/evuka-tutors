@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
+import TanstackQueryProvider from '@/providers/TanstackQueryProvider';
 import { ActiveContext } from '@/context/ActiveContext';
 import api from '@/lib/api/axios';
 
@@ -52,7 +53,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ActiveContext.Provider value={{ activeSlug, setActiveSlug }}>
-        {children}
+        <TanstackQueryProvider>
+          {children}
+        </TanstackQueryProvider>
       </ActiveContext.Provider>
     </AuthProvider>
   );

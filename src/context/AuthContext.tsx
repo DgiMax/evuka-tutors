@@ -11,9 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
 
-/* -------------------------------------------------------------------------- */
-/*                                   TYPES                                   */
-/* -------------------------------------------------------------------------- */
+/* TYPES -------------------------------------------------------------- */
 
 interface Organization {
   organization_name: string;
@@ -31,16 +29,6 @@ interface User {
   organizations?: Organization[];
 }
 
-interface TutorFormData {
-  profileImage: File | null;
-  displayName: string;
-  headline: string;
-  bio: string;
-  videoUrl: string;
-  subjects: string[];
-  education: string;
-}
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -52,13 +40,10 @@ interface AuthContextType {
   verifyEmail: (token: string) => Promise<void>;
   resendVerification: (email: string) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  fetchCurrentUser: () => Promise<void>;
-  submitTutorProfile: (formData: TutorFormData) => Promise<void>;
+  fetchCurrentUser: () => Promise<User | null>; 
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                 CONTEXT                                   */
-/* -------------------------------------------------------------------------- */
+/* CONTEXT -------------------------------------------------------------- */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -67,100 +52,147 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* -------------------------------------------------------------------------- */
-  /*                            FETCH CURRENT USER                              */
-  /* -------------------------------------------------------------------------- */
+  /* TOKEN AUTO-REFRESH LOGIC ----------------------------------------- */
+
+  useEffect(() => {
+    const interceptor = api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        // If 401 → Try to refresh
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          try {
+            await api.post("/users/refresh/"); // this uses cookies
+            return api(originalRequest); // retry the failed request
+          } catch {
+            // Refresh failed → Logout
+            setUser(null);
+            router.push("/login?session_expired=true");
+            return Promise.reject(error);
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => api.interceptors.response.eject(interceptor);
+  }, [router]);
+
+  /* FETCH CURRENT USER ------------------------------------------------ */
+
   const fetchCurrentUser = async () => {
     try {
       const response = await api.get<User>("/users/me/");
       setUser(response.data);
+      return response.data; // Returns User
     } catch {
       setUser(null);
+      return null; // Returns null
     }
   };
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      await fetchCurrentUser();
+    const init = async () => {
+      // NOTE: We don't await/use the return value here, but the function signature is now correct.
+      await fetchCurrentUser(); 
       setLoading(false);
     };
-    initializeAuth();
+    init();
   }, []);
 
-  /* -------------------------------------------------------------------------- */
-  /*                      HANDLE SESSION EXPIRATION (401)                       */
-  /* -------------------------------------------------------------------------- */
+  /* AUTH REDIRECT LOGIC ---------------------------------------------- */
+
   useEffect(() => {
-    const handleAuthExpired = () => {
-      setUser(null);
-      // Save current path so user can resume after login
-      sessionStorage.setItem("postLoginRedirect", window.location.pathname);
-      router.push("/login?session_expired=true");
-    };
+    if (loading) return;
 
-    window.addEventListener("auth-expired", handleAuthExpired);
-    return () => window.removeEventListener("auth-expired", handleAuthExpired);
-  }, [router]);
+    const path = window.location.pathname;
 
-  /* -------------------------------------------------------------------------- */
-  /*                           AUTH REDIRECT LOGIC                              */
-  /* -------------------------------------------------------------------------- */
-  useEffect(() => {
-    if (!loading && !user) {
-      const publicRoutes = [
-        "/login",
-        "/register",
-        "/forgot-password",
-        "/reset-password",
-      ];
-      const currentPath = window.location.pathname;
+    const publicRoutes = [
+      "/login",
+      "/register",
+      "/forgot-password",
+      "/verify-email",
+      "/reset-password",
+      "/check-email",
+    ];
+    
+    // '/onboarding' is NOT in publicRoutes.
 
-      if (!publicRoutes.some((path) => currentPath.startsWith(path))) {
-        router.push("/login");
-      }
+    const isPublicRoute = publicRoutes.some((route) =>
+      path.startsWith(route)
+    );
+    
+    const isOnboardingRoute = path.startsWith("/onboarding");
+
+    // --- 1. UNAUTHENTICATED REDIRECT ---
+    if (!user) {
+        // If the user is not logged in AND they are not on a public route, redirect to login.
+        if (!isPublicRoute) {
+            // Save the current path to redirect back after login
+            sessionStorage.setItem("postLoginRedirect", path);
+            router.replace("/login");
+        }
+        return; // Stop further checks if user is null
     }
+
+    // --- 2. AUTHENTICATED REDIRECTS ---
+    
+    // a) Redirect users away from public routes once they log in
+    if (user && isPublicRoute) {
+        router.replace("/");
+        return;
+    }
+
+    // b) Redirect new users who haven't selected a role/profile to /onboarding
+    if (user && !user.is_tutor && !user.is_student && !isOnboardingRoute) {
+        router.replace("/onboarding");
+    }
+    
   }, [user, loading, router]);
 
-  /* -------------------------------------------------------------------------- */
-  /*                                   LOGIN                                    */
-  /* -------------------------------------------------------------------------- */
+  /* LOGIN ------------------------------------------------------------- */
+
   const login = async (username: string, password: string) => {
     try {
       await api.post("/users/login/", { username, password });
-      await fetchCurrentUser();
 
-      // Redirect user to where they were before session expired
+      // Fetch latest user data and set state
+      const currentUserData = await fetchCurrentUser();
+
       const redirect = sessionStorage.getItem("postLoginRedirect");
+
+      // Check 2: Redirect to saved path or home
       if (redirect) {
         sessionStorage.removeItem("postLoginRedirect");
         router.push(redirect);
       } else {
         router.push("/");
       }
-    } catch (error) {
+    } catch {
       throw new Error("Login failed. Please check your credentials.");
     }
   };
 
-  /* -------------------------------------------------------------------------- */
-  /*                                   LOGOUT                                   */
-  /* -------------------------------------------------------------------------- */
+  /* LOGOUT ------------------------------------------------------------ */
+
   const logout = async () => {
     try {
       await api.post("/users/logout/");
-    } catch {
-      // ignore network errors
-    } finally {
-      setUser(null);
-      router.push("/login");
-    }
+    } catch {}
+    setUser(null);
+    router.push("/login");
   };
 
-  /* -------------------------------------------------------------------------- */
-  /*                                AUTH HELPERS                                */
-  /* -------------------------------------------------------------------------- */
+  /* OTHER AUTH FUNCTIONS --------------------------------------------- */
+
   const register = async (username: string, email: string, password: string) => {
     await api.post("/users/register/", { username, email, password });
+    // Redirect to a page that tells the user to check their email
+    router.push("/check-email");
   };
 
   const forgotPassword = async (email: string) => {
@@ -186,35 +218,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  /* -------------------------------------------------------------------------- */
-  /*                           SUBMIT TUTOR PROFILE                             */
-  /* -------------------------------------------------------------------------- */
-  const submitTutorProfile = async (formData: TutorFormData) => {
-    const data = new FormData();
-
-    data.append("display_name", formData.displayName);
-    data.append("headline", formData.headline);
-    data.append("bio", formData.bio);
-    data.append("education", formData.education);
-
-    if (formData.videoUrl) data.append("intro_video_url", formData.videoUrl);
-    if (formData.profileImage)
-      data.append("profile_image", formData.profileImage);
-
-    formData.subjects.forEach((subject) => {
-      data.append("subjects", subject);
-    });
-
-    await api.post("/users/profile/tutor/", data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    await fetchCurrentUser();
-  };
-
-  /* -------------------------------------------------------------------------- */
-  /*                                PROVIDER                                    */
-  /* -------------------------------------------------------------------------- */
   return (
     <AuthContext.Provider
       value={{
@@ -229,7 +232,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resendVerification,
         changePassword,
         fetchCurrentUser,
-        submitTutorProfile,
       }}
     >
       {children}
@@ -237,9 +239,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-/* -------------------------------------------------------------------------- */
-/*                                   HOOK                                     */
-/* -------------------------------------------------------------------------- */
+/* HOOK --------------------------------------------------------------- */
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
