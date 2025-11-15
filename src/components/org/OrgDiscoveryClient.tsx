@@ -2,7 +2,15 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import api from "@/lib/api/axios";
-import { Loader2, Search, Users, UserCheck, Clock, Building, Send } from "lucide-react";
+import {
+  Loader2,
+  Search,
+  Users,
+  UserCheck,
+  Clock,
+  Building, // ✅ NEW: Added Building icon for empty state
+  Send,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
@@ -20,9 +28,17 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // ✅ FIX 1: Added missing import
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-// --- Interfaces ---
+// --- Interfaces (Unchanged) ---
 interface OrgPublic {
   id: number;
   name: string;
@@ -39,12 +55,20 @@ interface OrgPublic {
   has_pending_request: boolean;
 }
 
+// ✅ NEW: Reusable Empty State component (themed)
+const EmptyState: React.FC<{ message: string }> = ({ message }) => (
+  <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
+    <Building className="h-8 w-8 text-muted-foreground" />
+    <p className="text-muted-foreground mt-2 text-center">{message}</p>
+  </div>
+);
+
 export default function OrgDiscoveryClient() {
   const [orgs, setOrgs] = useState<OrgPublic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const { user } = useAuth(); // Get current user
+  const { user } = useAuth();
 
   // Debounce search input
   useEffect(() => {
@@ -62,8 +86,9 @@ export default function OrgDiscoveryClient() {
         const params = new URLSearchParams();
         if (debouncedSearch) params.append("search", debouncedSearch);
 
-        // Use the new API path
-        const res = await api.get(`/community/api/discover/?${params.toString()}`);
+        const res = await api.get(
+          `/community/api/discover/?${params.toString()}`
+        );
         setOrgs(res.data.results || res.data); // Handle pagination
       } catch (error) {
         toast.error("Failed to load organizations.");
@@ -85,49 +110,63 @@ export default function OrgDiscoveryClient() {
   };
 
   return (
-    <div className="container mx-auto p-6 md:p-10">
-      <div className="max-w-3xl mx-auto text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          Discover Organizations
-        </h1>
-        <p className="text-lg text-gray-600">
-          Browse and join communities to start learning and collaborating.
-        </p>
-      </div>
-
-      <div className="relative mb-8 max-w-xl mx-auto">
-        <Input
-          placeholder="Search for an organization..."
-          className="pl-10 h-12 rounded-full"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)} // ✅ FIX 2: Corrected typo
-        />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-      </div>
-
-      {isLoading && (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+    <div className="bg-background min-h-screen">
+      <div className="container mx-auto p-6 md:p-10">
+        <div className="max-w-3xl mx-auto text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-4">
+            Discover Organizations
+          </h1>
+          <p className="text-lg text-muted-foreground">
+            Browse and join communities to start learning and collaborating.
+          </p>
         </div>
-      )}
 
-      {!isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {orgs.map((org) => (
-            <OrgCard
-              key={org.slug}
-              org={org}
-              onRequestSent={() => handleRequestSent(org.slug)}
-              isAuth={!!user}
-            />
-          ))}
+        <div className="relative mb-8 max-w-xl mx-auto">
+          <Input
+            placeholder="Search for an organization..."
+            className="pl-10 h-12 rounded-md"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         </div>
-      )}
+
+        {isLoading && (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        )}
+
+        {/* ✅ UPDATED: Added check for orgs.length > 0 */}
+        {!isLoading && orgs.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {orgs.map((org) => (
+              <OrgCard
+                key={org.slug}
+                org={org}
+                onRequestSent={() => handleRequestSent(org.slug)}
+                isAuth={!!user}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ✅ UPDATED: Added empty state when not loading and no orgs */}
+        {!isLoading && orgs.length === 0 && (
+          <EmptyState
+            message={
+              debouncedSearch
+                ? `No organizations found matching "${debouncedSearch}".`
+                : "No organizations are available at this time."
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-// --- Org Card Sub-component ---
+// --- Org Card Sub-component (Themed) ---
 function OrgCard({
   org,
   onRequestSent,
@@ -141,25 +180,29 @@ function OrgCard({
   const fallback = org.name.charAt(0);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-md overflow-hidden flex flex-col transition-all hover:shadow">
-      <div className="p-6">
+    <Card className="rounded-md overflow-hidden flex flex-col transition-all hover:shadow p-0">
+      <CardContent className="p-6">
         <div className="flex items-center gap-4 mb-4">
-          <div className="h-16 w-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border">
+          <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border">
             {logoUrl ? (
-              <img
+              <Image
                 src={logoUrl}
                 alt={org.name}
+                width={64}
+                height={64}
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-2xl font-bold text-gray-500">
+              <span className="text-2xl font-bold text-muted-foreground">
                 {fallback}
               </span>
             )}
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{org.name}</h2>
-            <div className="flex gap-4 text-sm text-gray-500 mt-1">
+            <h2 className="text-xl font-semibold text-foreground">
+              {org.name}
+            </h2>
+            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
               <span className="flex items-center gap-1">
                 <Users className="h-4 w-4" /> {org.stats.tutors} Tutors
               </span>
@@ -169,23 +212,23 @@ function OrgCard({
             </div>
           </div>
         </div>
-        <p className="text-gray-600 text-sm line-clamp-3 mb-6 min-h-[60px]">
+        <p className="text-muted-foreground text-sm line-clamp-3 mb-0 min-h-[60px]">
           {org.description || "No description provided."}
         </p>
-      </div>
+      </CardContent>
 
-      <div className="mt-auto bg-gray-50 p-6 border-t border-gray-100">
+      <CardFooter className="mt-auto bg-muted/50 p-6 border-t border-border">
         <JoinButton
           org={org}
           onRequestSent={onRequestSent}
           isAuth={isAuth}
         />
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }
 
-// --- Join Button / Dialog Sub-component ---
+// --- Join Button / Dialog Sub-component (Themed) ---
 function JoinButton({
   org,
   onRequestSent,
@@ -198,7 +241,7 @@ function JoinButton({
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter(); // router is now defined
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,7 +251,6 @@ function JoinButton({
         organization: org.slug,
         message: message,
       };
-      // API call to the new endpoint
       await api.post("/community/api/request-join/", payload);
       toast.success(`Request sent to ${org.name}!`);
       onRequestSent();
@@ -226,7 +268,7 @@ function JoinButton({
   // 1. User is already a member
   if (org.is_member) {
     return (
-      <Button variant="outline" className="w-full bg-white" disabled>
+      <Button variant="outline" className="w-full" disabled>
         <UserCheck className="mr-2 h-4 w-4" /> Member
       </Button>
     );
@@ -235,7 +277,7 @@ function JoinButton({
   // 2. User has a pending request
   if (org.has_pending_request) {
     return (
-      <Button variant="outline" className="w-full bg-white" disabled>
+      <Button variant="outline" className="w-full" disabled>
         <Clock className="mr-2 h-4 w-4" /> Request Pending
       </Button>
     );

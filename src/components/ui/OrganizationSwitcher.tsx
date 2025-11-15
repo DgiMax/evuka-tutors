@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// ✅ 1. Import Link and icons
 import Link from "next/link";
 import { Building, Plus, Search } from "lucide-react";
 
@@ -55,7 +54,7 @@ export default function OrganizationSwitcher({
     >
       <SelectTrigger
         className={cn(
-          "w-full min-w-[200px] sm:w-auto justify-between border-gray-300",
+          "justify-between truncate", // Removed problematic width classes
           triggerClassName
         )}
         aria-label="Select account or organization"
@@ -74,19 +73,27 @@ export default function OrganizationSwitcher({
             <SelectSeparator />
             <SelectGroup>
               <SelectLabel>Organizations</SelectLabel>
-              {organizations.map((org) => (
-                <SelectItem
-                  key={org.organization_slug}
-                  value={org.organization_slug}
-                >
-                  {org.organization_name}
-                </SelectItem>
-              ))}
+              {/* ✅ FIX: Added a .filter() to remove any orgs that have
+                a null, undefined, or empty string slug.
+              */}
+              {organizations
+                .filter(
+                  (org) =>
+                    org.organization_slug && org.organization_slug.trim() !== ""
+                )
+                .map((org) => (
+                  <SelectItem
+                    key={org.organization_slug}
+                    value={org.organization_slug}
+                  >
+                    {org.organization_name}
+                  </SelectItem>
+                ))}
             </SelectGroup>
           </>
         )}
 
-        {/* ✅ 2. Add new section for actions */}
+        {/* Action links */}
         <SelectSeparator />
         <SelectGroup>
           <SelectLabel>Actions</SelectLabel>

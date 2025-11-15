@@ -1,29 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, SubmitHandler } from "react-hook-form";
-import * as z from "zod";
-import { AnimatePresence, motion } from "framer-motion";
-import { toast } from "sonner";
+import React, { useEffect, useState } from "react";
+import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
-
-import {
-  Loader2,
-  Building,
-  Send,
-  School,
-  Home,
-  Info,
-  Image,
-  FileText,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-} from "lucide-react";
-
+import { Loader2, Building, Send, School, Home, Info, Image, FileText, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -51,8 +32,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, SubmitHandler } from "react-hook-form";
+import * as z from "zod";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-// 1. Define the Zod schema for Organization creation
+// 1. Zod schema (Unchanged)
 const orgFormSchema = z.object({
   // Step 1: Basic Info
   name: z
@@ -81,7 +69,7 @@ const orgFormSchema = z.object({
 
 type OrgFormValues = z.infer<typeof orgFormSchema>;
 
-// 2. Define the steps, similar to the course creator
+// 2. Steps definition (Unchanged)
 const steps = [
   {
     id: 1,
@@ -131,10 +119,10 @@ export default function OrgCreateClient() {
     mode: "onBlur",
   });
 
+  // --- Logic & Handlers (Unchanged) ---
   const processForm: SubmitHandler<OrgFormValues> = async (data) => {
     setIsLoading(true);
     try {
-      // POST the full nested form data
       const res = await api.post("/organizations/create/", data);
       const newOrgSlug = res.data.slug;
 
@@ -149,9 +137,9 @@ export default function OrgCreateClient() {
       if (error.response && error.response.status === 400) {
         const errorData = error.response.data;
         if (errorData.name) {
-             form.setError("name", { type: "manual", message: errorData.name[0] });
-             setCurrentStep(1); // FIX: Was setCurrentTab("basic")
-             toast.error("Please correct the error on the Basic Info tab.");
+            form.setError("name", { type: "manual", message: errorData.name[0] });
+            setCurrentStep(1); 
+            toast.error("Please correct the error on the Basic Info tab.");
         } else {
             toast.error("An error occurred. Please check the form.");
         }
@@ -181,10 +169,12 @@ export default function OrgCreateClient() {
       setCurrentStep((step) => step - 1);
     }
   };
+  // --- End Logic ---
 
   return (
-    <Card className="max-w-4xl mx-auto my-8 border border-gray-200 rounded text-black shadow-none">
-      <CardHeader>
+    // UPDATED: Card now responsive and themed
+    <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0">
+      <CardHeader className="p-6">
         <CardTitle className="text-xl">
           Create a New Organization
         </CardTitle>
@@ -192,33 +182,54 @@ export default function OrgCreateClient() {
           Fill out the details step-by-step.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6">
-        {/* Stepper UI */}
-        <div className="flex items-center mb-8 border-b border-gray-200 pb-2">
+      {/* UPDATED: Consistent padding */}
+      <CardContent className="pt-0 p-6">
+        {/* --- Stepper UI --- */}
+        {/* UPDATED: Responsive Stepper */}
+        
+        {/* Mobile Stepper */}
+        <div className="md:hidden mb-6">
+          <p className="text-sm font-semibold text-primary">
+            Step {currentStep} of {steps.length}
+          </p>
+          <h2 className="text-lg font-semibold text-foreground">
+            {steps[currentStep-1].name}
+          </h2>
+        </div>
+        
+        {/* Desktop Stepper */}
+        <div className="hidden md:flex items-center mb-8 border-b border-border pb-4">
           {steps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
-                className={`flex items-center text-sm transition-colors duration-300 ${
-                  currentStep > index + 1 ? "text-blue-600" : currentStep === index + 1 ? "text-blue-600 font-semibold" : "text-gray-400"
-                }`}
+                className={cn(
+                  "flex items-center text-sm transition-colors duration-300",
+                  currentStep > index + 1 ? "text-primary" : 
+                  currentStep === index + 1 ? "text-primary font-semibold" : 
+                  "text-muted-foreground"
+                )}
               >
                 <div
-                  className={`flex items-center justify-center w-6 h-6 rounded-full border-2 mr-2 ${
-                    currentStep > index + 1 ? "bg-blue-600 border-blue-600 text-white" : currentStep === index + 1 ? "border-blue-600" : "border-gray-300"
-                  }`}
+                  className={cn(
+                    "flex items-center justify-center w-6 h-6 rounded-full border-2 mr-2",
+                    currentStep > index + 1 ? "bg-primary border-primary text-primary-foreground" : 
+                    currentStep === index + 1 ? "border-primary" : 
+                    "border-border"
+                  )}
                 >
                   {currentStep > index + 1 ? <Check size={14} /> : step.id}
                 </div>
                 {step.name}
               </div>
-              {index < steps.length - 1 && <div className="flex-1 border-t-2 border-gray-200 mx-4"></div>}
+              {index < steps.length - 1 && <div className="flex-1 border-t-2 border-border mx-4"></div>}
             </React.Fragment>
           ))}
         </div>
 
         {/* Form Content */}
         <Form {...form}>
-          <form id="org-create-form" onSubmit={form.handleSubmit(processForm)} className="space-y-8">
+          {/* UPDATED: Reduced gap to space-y-6 */}
+          <form id="org-create-form" onSubmit={form.handleSubmit(processForm)} className="space-y-6">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -368,17 +379,19 @@ export default function OrgCreateClient() {
         </Form>
       </CardContent>
       {/* Card Footer */}
-      <CardFooter className="flex justify-between border-t pt-6">
+      {/* UPDATED: Themed buttons and border */}
+      <CardFooter className="flex justify-between border-t border-border p-6">
         <div>
           {currentStep > 1 && (
-            <Button onClick={prevStep} variant="outline" disabled={isLoading} className="rounded">
+            <Button onClick={prevStep} variant="outline" disabled={isLoading}>
               <ArrowLeft className="mr-2" size={16} /> Previous
             </Button>
           )}
         </div>
         <div className="flex gap-2">
           {currentStep < steps.length && (
-            <Button onClick={nextStep} disabled={isLoading} className="rounded bg-blue-600 hover:bg-blue-700">
+            // UPDATED: Use secondary (Teal) for "Next"
+            <Button onClick={nextStep} variant="secondary" disabled={isLoading}>
               Next <ArrowRight className="ml-2" size={16} />
             </Button>
           )}
@@ -388,7 +401,8 @@ export default function OrgCreateClient() {
               type="submit"
               form="org-create-form"
               disabled={isLoading}
-              className="rounded bg-green-600 hover:bg-green-700 w-[200px]"
+              // UPDATED: Use primary (Purple) for "Submit"
+              className="w-full sm:w-[200px]"
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

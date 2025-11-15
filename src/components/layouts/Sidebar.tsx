@@ -60,10 +60,11 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
     <Link
       href={computedHref}
       onClick={onClick}
+      // UPDATED: Using theme variables (primary = purple, accent = hover state)
       className={`flex items-center gap-2 rounded px-3 py-2 text-sm transition-colors ${
         isActive
-          ? "bg-blue-500 text-white"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+          ? "bg-primary text-primary-foreground font-medium"
+          : "text-foreground hover:bg-accent hover:text-accent-foreground"
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -96,7 +97,7 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
     }
   };
 
-  // ✅ Hide org-only links if no activeSlug
+  // Hide org-only links if no activeSlug
   const visibleTopNavLinks = topNavLinks.filter(
     (link) => !link.orgOnly || (link.orgOnly && activeSlug)
   );
@@ -104,49 +105,63 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
   return (
     <AnimatePresence>
       {isSidebarOpen && (
-        <motion.aside
-          initial={{ x: "-100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "-100%" }}
-          transition={{ type: "spring", stiffness: 220, damping: 25 }}
-          className="fixed top-12 left-0 z-40 w-52 h-[calc(100vh-3rem)] bg-white border-r flex flex-col"
-        >
-          {/* Top Section */}
-          <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            {visibleTopNavLinks.map((link) => (
-              <NavLink
-                key={link.label}
-                {...link}
-                onClick={() => setIsSidebarOpen(false)}
-              />
-            ))}
-          </nav>
+        <>
+          {/* NEW: Backdrop Overlay to close sidebar when clicking outside */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
 
-          {/* Bottom Section */}
-          <div className="border-t p-3 space-y-1">
-            {bottomNavLinks.map((link) => (
-              <NavLink
-                key={link.label}
-                {...link}
-                onClick={() => setIsSidebarOpen(false)}
-              />
-            ))}
+          {/* Sidebar */}
+          <motion.aside
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 220, damping: 25 }}
+            // UPDATED: Using bg-sidebar (almost white) and theme border
+            className="fixed top-12 left-0 z-40 w-52 h-[calc(100vh-3rem)] bg-sidebar border-r border-border flex flex-col shadow-xl"
+          >
+            {/* Top Section */}
+            <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+              {visibleTopNavLinks.map((link) => (
+                <NavLink
+                  key={link.label}
+                  {...link}
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+              ))}
+            </nav>
 
-            {/* Logout Button */}
-            <button
-              onClick={handleSignOut}
-              disabled={signOutLoading}
-              className="flex items-center gap-2 rounded px-3 py-2 text-sm w-full text-left text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {signOutLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4" />
-              )}
-              <span>{signOutLoading ? "Logging out..." : "Logout"}</span>
-            </button>
-          </div>
-        </motion.aside>
+            {/* Bottom Section */}
+            <div className="border-t border-border p-3 space-y-1">
+              {bottomNavLinks.map((link) => (
+                <NavLink
+                  key={link.label}
+                  {...link}
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+              ))}
+
+              {/* Logout Button */}
+              <button
+                onClick={handleSignOut}
+                disabled={signOutLoading}
+                // UPDATED: Hover state turns text red (destructive)
+                className="flex items-center gap-2 rounded px-3 py-2 text-sm w-full text-left text-foreground hover:bg-accent hover:text-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {signOutLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                <span>{signOutLoading ? "Logging out..." : "Logout"}</span>
+              </button>
+            </div>
+          </motion.aside>
+        </>
       )}
     </AnimatePresence>
   );

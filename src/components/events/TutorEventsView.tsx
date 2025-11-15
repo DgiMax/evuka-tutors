@@ -17,6 +17,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AlertTriangle } from "lucide-react"; // Added for error state
+
+// --- NEW: Reusable Empty State component (themed) ---
+const EmptyState: React.FC<{
+  message: string;
+  linkPath?: string;
+  linkText?: string;
+}> = ({ message, linkPath, linkText }) => (
+  <div className="flex flex-col items-center justify-center h-60 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
+    <CalendarDays className="h-8 w-8 text-muted-foreground" />
+    <p className="text-muted-foreground mt-2 text-center">{message}</p>
+    {linkPath && linkText && (
+      <Button asChild variant="link" className="text-primary">
+        <Link href={linkPath}>{linkText}</Link>
+      </Button>
+    )}
+  </div>
+);
 
 export default function TutorEventsClient() {
   const { activeSlug } = useActiveOrg();
@@ -68,31 +86,48 @@ export default function TutorEventsClient() {
 
   if (isLoading && !events.length) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+      <div className="flex flex-col justify-center items-center h-screen">
+        {/* UPDATED: Themed loader */}
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">Loading events...</p>
       </div>
     );
   }
 
   if (error) {
-    return <p className="text-red-500 text-center mt-10">{error}</p>;
+    return (
+      // UPDATED: Themed error state
+      <div className="flex flex-col items-center justify-center h-60 text-destructive container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8">
+        <AlertTriangle className="h-8 w-8" />
+        <p className="mt-2 font-medium">{error}</p>
+        <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
+          Try Again
+        </Button>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8">
+    // UPDATED: Standardized padding
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header / Toolbar */}
       <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Title */}
-        <h2 className="text-2xl font-semibold text-gray-900">My Events</h2>
+        {/* UPDATED: Themed text */}
+        <h2 className="text-2xl font-semibold text-foreground self-start md:self-center">
+          My Events
+        </h2>
 
         {/* Controls */}
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           {/* Search Input */}
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {/* UPDATED: Themed icon */}
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            {/* UPDATED: Removed bg-white and rounded */}
             <Input
               placeholder="Search events..."
-              className="pl-10 rounded bg-white"
+              className="pl-10"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -100,7 +135,8 @@ export default function TutorEventsClient() {
 
           {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-white rounded">
+            {/* UPDATED: Removed bg-white and rounded */}
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -115,7 +151,8 @@ export default function TutorEventsClient() {
           </Select>
 
           {/* New Event Button */}
-          <Button asChild className="w-full sm:w-auto rounded">
+          {/* UPDATED: Removed rounded, will use theme default */}
+          <Button asChild className="w-full sm:w-auto">
             <Link href={createEventHref} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               New Event
@@ -126,24 +163,25 @@ export default function TutorEventsClient() {
 
       {/* Content or Empty State */}
       {!events.length ? (
-        <div className="text-center py-16">
-          <CalendarDays className="mx-auto mb-3 h-8 w-8 text-gray-400" />
-          <p className="text-gray-600">
-            {isDefaultView
+        // UPDATED: Using new EmptyState component
+        <EmptyState
+          message={
+            isDefaultView
               ? "You haven't created any events yet."
-              : "No events found matching your criteria."}
-          </p>
-          <div className="mt-4">
-            <Link href={createEventHref}>
-              <Button>Create Event</Button>
-            </Link>
-          </div>
-        </div>
+              : "No events found matching your criteria."
+          }
+          {...(isDefaultView && {
+            linkPath: createEventHref,
+            linkText: "Create your first event",
+          })}
+        />
       ) : (
-        <div className="relative grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
+        // UPDATED: Cleaned up grid classes
+        <div className="relative grid gap-4 grid-cols-1 lg:grid-cols-2">
           {isLoading && (
-            <div className="absolute top-0 left-0 w-full h-full bg-white/50 z-10 flex justify-center items-start pt-32">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+            // UPDATED: Themed spinner overlay
+            <div className="absolute top-0 left-0 w-full h-full bg-background/80 z-10 flex justify-center items-start pt-32">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           )}
           {events.map((event) => (
