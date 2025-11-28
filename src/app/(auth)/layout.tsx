@@ -16,15 +16,12 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-start justify-center overflow-hidden p-6"
+      className="fixed inset-0 flex items-start justify-center overflow-y-auto p-6"
       style={{
         backgroundColor: "#EFFAFC",
       }}
     >
-      {/* Auth Page Content */}
-      <div className="w-full max-w-2xl px-6">{children}</div>
-
-
+      {children}
     </div>
   );
 }

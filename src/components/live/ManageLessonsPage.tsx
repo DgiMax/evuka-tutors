@@ -36,7 +36,6 @@ interface LiveClass {
 
 // --- Helper Function ---
 function combineDateTime(date: string, time: string): Date {
-  // Handles both "HH:MM" and "HH:MM:SS"
   return parseISO(`${date}T${time}`);
 }
 
@@ -49,7 +48,9 @@ export default function ManageLessonsPage() {
   
   const params = useParams();
   const router = useRouter();
-  const { slug, class_slug } = params;
+  
+  const slug = params.slug as string;
+  const class_slug = params.class_slug as string;
 
   // --- (Fetch and refresh data logic) ---
   const fetchClassDetails = useCallback(async () => {
@@ -57,7 +58,6 @@ export default function ManageLessonsPage() {
     try {
       setLoading(true);
       const response = await api.get(`/live/classes/${class_slug}/`);
-      // Sort lessons by date
       response.data.lessons.sort((a: LiveLesson, b: LiveLesson) => 
         combineDateTime(a.date, a.start_time).getTime() - 
         combineDateTime(b.date, b.start_time).getTime()
@@ -101,21 +101,14 @@ export default function ManageLessonsPage() {
     }
   };
 
-  // 2. Add a Join function
-  const handleJoin = async (lessonId: number) => {
-    const toastId = toast.loading("Generating secure join link...");
-    try {
-      // Call the 'join' action on the LiveLesson endpoint
-      const response = await api.get(`/live/lessons/${lessonId}/join/`);
-      const { meeting_url } = response.data;
-      
-      toast.success("Redirecting to meeting...", { id: toastId });
-      window.open(meeting_url, "_blank"); // Open in a new tab
-
-    } catch (error) {
-      console.error("Failed to join lesson:", error);
-      toast.error("Failed to get join link. Are you the correct tutor?", { id: toastId });
-    }
+  // 2. FIXED: Join function to redirect to the correct nested Jitsi host page
+  // We no longer fetch the meeting_url here, we just redirect.
+  const handleJoin = (lessonId: number) => {
+    const destinationPath = `/courses/${slug}/live-classes/${class_slug}/manage/class`;
+    
+    // We navigate to the Jitsi host page, passing the specific lesson ID
+    // which the host page will use to make its own API call.
+    router.push(`${destinationPath}?lessonId=${lessonId}`); 
   };
 
   if (loading) {
@@ -167,8 +160,7 @@ export default function ManageLessonsPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center"><Clock size={18} className="mr-2 text-blue-600" /> Upcoming Lessons</h3>
                 <div className="space-y-3">
-                  {upcomingLessons.length > 0 ? (
-                    upcomingLessons.map((lesson) => {
+                  {upcomingLessons.map((lesson) => {
                       const startTime = combineDateTime(lesson.date, lesson.start_time);
                       const minutesToStart = differenceInMinutes(startTime, now);
                       // Tutors can join 30 mins before and up to 2 hours after start
@@ -186,9 +178,9 @@ export default function ManageLessonsPage() {
                             )}
                           </div>
                           <div className="flex gap-2 flex-shrink-0">
-                            {/* Add this Join Button */}
+                            {/* The Join Button */}
                             {isJoinable && (
-                              <Button size="sm" className="rounded" onClick={() => handleJoin(lesson.id)}>
+                              <Button size="sm" className="rounded bg-[#2694C6] hover:bg-[#1f7ba5]" onClick={() => handleJoin(lesson.id)}>
                                 <Video size={14} className="mr-2" /> Join Now
                               </Button>
                             )}
@@ -201,10 +193,7 @@ export default function ManageLessonsPage() {
                           </div>
                         </div>
                       );
-                    })
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">No upcoming lessons.</p>
-                  )}
+                    })}
                 </div>
               </div>
 
@@ -212,8 +201,7 @@ export default function ManageLessonsPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-2 flex items-center"><CheckCircle size={18} className="mr-2 text-green-600" /> Past Lessons</h3>
                 <div className="space-y-3">
-                  {pastLessons.length > 0 ? (
-                    pastLessons.map((lesson) => (
+                  {pastLessons.map((lesson) => (
                       <div key={lesson.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50 opacity-70">
                         <div>
                           <h3 className="font-semibold text-gray-700">{lesson.title}</h3>
@@ -222,10 +210,7 @@ export default function ManageLessonsPage() {
                           </p>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">No past lessons yet.</p>
-                  )}
+                    ))}
                 </div>
               </div>
             </>

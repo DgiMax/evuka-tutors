@@ -1,25 +1,58 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useForm, FormProvider, useFormContext, useFieldArray } from "react-hook-form";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import api from "@/lib/api/axios";
-import { AxiosError } from "axios";
-import { z } from "zod";
+import {
+  useForm,
+  useFieldArray,
+  Control,
+  UseFormWatch,
+  SubmitHandler,
+  type Resolver,
+  FormProvider,
+  useFormContext,
+  Path,
+} from "react-hook-form";
+import * as z from "zod";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
+import { useAuth } from "@/context/AuthContext";
+import Link from "next/link";
 import {
   Plus,
   Trash2,
+  Info,
+  BookOpen,
+  FileImage,
+  DollarSign,
+  Send,
   ArrowLeft,
   ArrowRight,
-  Send,
+  Save,
+  Eye,
   Loader2,
   Check,
-  Save,
+  School,
+  Home,
+  Image as ImageIcon,
+  FileText as FileTextIcon,
+  Calendar,
+  Layers,
+  Link as LinkIcon,
+  Facebook,
+  Linkedin,
+  Twitter,
+  Scale,
+  Users,
+  Building,
 } from "lucide-react";
 
+import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
+import api from "@/lib/api/axios";
+
+// --- UI Components ---
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,6 +63,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Form,
   FormControl,
   FormDescription,
   FormField,
@@ -39,8 +73,33 @@ import {
 } from "@/components/ui/form";
 import { Input as ShadcnInput } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 // ----------------------------
 // Validation Schema
@@ -52,13 +111,11 @@ const eventSchema = z.object({
   event_type: z.string().min(1, "Event type is required."),
   who_can_join: z.string().optional(),
   course: z.string().min(1, "Course is required."),
-
   start_time: z.string().min(1, "Start time is required."),
   end_time: z.string().min(1, "End time is required."),
   timezone: z.string().min(1, "Timezone is required."),
   location: z.string().optional(),
   meeting_link: z.string().url("Must be a valid URL.").or(z.literal("")).optional(),
-
   max_attendees: z.number().min(1, "Must allow at least 1 attendee."),
   registration_open: z.boolean().default(true),
   registration_deadline: z.string().min(1, "Registration deadline is required."),
@@ -67,7 +124,6 @@ const eventSchema = z.object({
   price: z.number().optional(),
   currency: z.string().optional(),
   banner_image: z.any().optional(),
-
   agenda: z
     .array(
       z.object({
@@ -96,12 +152,12 @@ const eventSchema = z.object({
 });
 
 type EventFormData = z.infer<typeof eventSchema>;
-// Helper function to format ISO strings for <input type="datetime-local">
+
+// Helper function
 const formatDateTimeForInput = (isoString: string | null | undefined) => {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
-    // Get local ISO string and slice to 'YYYY-MM-DDTHH:mm'
     const localISO = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
       .toISOString()
       .slice(0, 16);
@@ -113,7 +169,7 @@ const formatDateTimeForInput = (isoString: string | null | undefined) => {
 };
 
 // ----------------------------
-// Step Components
+// Step Components (Themed)
 // ----------------------------
 function StepBasicInfo({ formOptions }: { formOptions: any }) {
   const { control } = useFormContext<EventFormData>();
@@ -179,7 +235,7 @@ function StepBasicInfo({ formOptions }: { formOptions: any }) {
               <FormLabel>Related Course</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="truncate">
                     <SelectValue placeholder="Select course" />
                   </SelectTrigger>
                 </FormControl>
@@ -205,18 +261,16 @@ function StepBasicInfo({ formOptions }: { formOptions: any }) {
               <FormLabel>Event Type</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="truncate">
                     <SelectValue placeholder="Select event type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {formOptions?.form_options?.event_types?.map(
-                    (option: any) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    )
-                  )}
+                  {formOptions?.form_options?.event_types?.map((option: any) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -233,18 +287,16 @@ function StepBasicInfo({ formOptions }: { formOptions: any }) {
             <FormLabel>Who Can Join</FormLabel>
             <Select onValueChange={field.onChange} value={field.value || ""}>
               <FormControl>
-                <SelectTrigger>
+                <SelectTrigger className="truncate">
                   <SelectValue placeholder="Select who can join" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {formOptions?.form_options?.who_can_join?.map(
-                  (option: any) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  )
-                )}
+                {formOptions?.form_options?.who_can_join?.map((option: any) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <FormMessage />
@@ -277,10 +329,12 @@ function StepEventDetails() {
   } = useFieldArray({ control, name: "rules" });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Section 1: Learning Objectives */}
       <div className="space-y-2">
-        <FormLabel className="text-lg font-semibold">Learning Objectives</FormLabel>
+        <FormLabel className="text-lg font-semibold">
+          Learning Objectives
+        </FormLabel>
         <FormDescription>What will attendees learn?</FormDescription>
 
         {objectives.map((field, index) => (
@@ -301,8 +355,9 @@ function StepEventDetails() {
                   variant="ghost"
                   size="icon"
                   onClick={() => removeObjective(index)}
+                  className="text-destructive/70 hover:text-destructive"
                 >
-                  <Trash2 size={16} className="text-gray-500 hover:text-red-600" />
+                  <Trash2 size={16} />
                 </Button>
                 <FormMessage />
               </FormItem>
@@ -314,7 +369,7 @@ function StepEventDetails() {
           type="button"
           variant="outline"
           size="sm"
-          className="mt-2 rounded"
+          className="mt-2 rounded-md"
           onClick={() => appendObjective({ text: "" })}
         >
           <Plus className="mr-2" size={16} /> Add Objective
@@ -327,12 +382,20 @@ function StepEventDetails() {
         <FormDescription>Outline the event's schedule.</FormDescription>
 
         {agendaItems.map((field, index) => (
-          <Accordion key={field.id} type="single" collapsible className="w-full mb-2">
-            <AccordionItem value={`agenda-${field.id}`} className="border rounded bg-white">
+          <Accordion
+            key={field.id}
+            type="single"
+            collapsible
+            className="w-full mb-2"
+          >
+            <AccordionItem
+              value={`agenda-${field.id}`}
+              className="border border-border rounded-md bg-card"
+            >
               <AccordionTrigger className="px-4 py-2 text-sm hover:no-underline">
                 Agenda Item {index + 1}
               </AccordionTrigger>
-              <AccordionContent className="space-y-3 p-4 border-t">
+              <AccordionContent className="space-y-3 p-4 border-t border-border">
                 <FormField
                   control={control}
                   name={`agenda.${index}.time`}
@@ -349,7 +412,6 @@ function StepEventDetails() {
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={control}
                   name={`agenda.${index}.title`}
@@ -357,13 +419,15 @@ function StepEventDetails() {
                     <FormItem>
                       <FormLabel className="text-xs font-medium">Title</FormLabel>
                       <FormControl>
-                        <ShadcnInput placeholder="e.g., Introduction" {...field} />
+                        <ShadcnInput
+                          placeholder="e.g., Introduction"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={control}
                   name={`agenda.${index}.description`}
@@ -373,13 +437,15 @@ function StepEventDetails() {
                         Description (Optional)
                       </FormLabel>
                       <FormControl>
-                        <Textarea placeholder="What will happen..." {...field} />
+                        <Textarea
+                          placeholder="What will happen..."
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <div className="text-right mt-2">
                   <Button
                     type="button"
@@ -399,7 +465,7 @@ function StepEventDetails() {
           type="button"
           variant="outline"
           size="sm"
-          className="mt-2 rounded"
+          className="mt-2 rounded-md"
           onClick={() => appendAgenda({ time: "", title: "", description: "" })}
         >
           <Plus className="mr-2" size={16} /> Add Agenda Item
@@ -412,28 +478,37 @@ function StepEventDetails() {
         <FormDescription>Set guidelines for attendees.</FormDescription>
 
         {rules.map((field, index) => (
-          <Card key={field.id} className="bg-gray-50 border rounded shadow-none p-4">
+          <Card
+            key={field.id}
+            className="bg-muted/50 border rounded-md shadow-none p-4"
+          >
             <div className="space-y-3">
               <FormField
                 control={control}
                 name={`rules.${index}.title`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Rule Title</FormLabel>
+                    <FormLabel className="text-xs font-medium">
+                      Rule Title
+                    </FormLabel>
                     <FormControl>
-                      <ShadcnInput placeholder="e.g., Be Respectful" {...field} />
+                      <ShadcnInput
+                        placeholder="e.g., Be Respectful"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={control}
                 name={`rules.${index}.text`}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs font-medium">Rule Text</FormLabel>
+                    <FormLabel className="text-xs font-medium">
+                      Rule Text
+                    </FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="Details about the rule..."
@@ -444,7 +519,6 @@ function StepEventDetails() {
                   </FormItem>
                 )}
               />
-
               <div className="text-right mt-2">
                 <Button
                   type="button"
@@ -463,7 +537,7 @@ function StepEventDetails() {
           type="button"
           variant="outline"
           size="sm"
-          className="mt-2 rounded"
+          className="mt-2 rounded-md"
           onClick={() => appendRule({ title: "", text: "" })}
         >
           <Plus className="mr-2" size={16} /> Add Rule
@@ -472,7 +546,6 @@ function StepEventDetails() {
     </div>
   );
 }
-
 
 function StepSchedule() {
   const { control } = useFormContext<EventFormData>();
@@ -530,7 +603,10 @@ function StepSchedule() {
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <ShadcnInput placeholder="e.g., Online or venue address" {...field} />
+                <ShadcnInput
+                  placeholder="e.g., Online or venue address"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -564,23 +640,28 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
       <FormField
         control={control}
         name="event_status"
+        // UPDATED: Themed
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50">
-            <div className="space-y-0.5">
+          <FormItem className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-md border border-border p-4 bg-muted/50">
+            <div className="space-y-0.5 mb-2 sm:mb-0">
               <FormLabel className="text-base">Event Status</FormLabel>
-              <FormDescription>Save as draft or submit for approval.</FormDescription>
+              <FormDescription>
+                Save as draft or submit for approval.
+              </FormDescription>
             </div>
             <FormControl>
               <Select onValueChange={field.onChange} value={field.value}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px] truncate">
                   <SelectValue placeholder="Select status..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {formOptions?.form_options?.event_statuses?.map((option: any) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
+                  {formOptions?.form_options?.event_statuses?.map(
+                    (option: any) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
             </FormControl>
@@ -613,13 +694,18 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
           control={control}
           name="registration_open"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+            <FormItem className="flex flex-row items-center justify-between rounded-md border border-border p-4">
               <div>
                 <FormLabel className="text-base">Registration Open</FormLabel>
-                <FormDescription>Toggle to open or close event registration.</FormDescription>
+                <FormDescription>
+                  Toggle to open or close event registration.
+                </FormDescription>
               </div>
               <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
               </FormControl>
             </FormItem>
           )}
@@ -643,10 +729,12 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
         control={control}
         name="is_paid"
         render={({ field }) => (
-          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+          <FormItem className="flex flex-row items-center justify-between rounded-md border border-border p-4">
             <div>
               <FormLabel className="text-base">Paid Event?</FormLabel>
-              <FormDescription>Toggle if the event requires payment.</FormDescription>
+              <FormDescription>
+                Toggle if the event requires payment.
+              </FormDescription>
             </div>
             <FormControl>
               <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -656,7 +744,7 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
       />
 
       {isPaid && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border rounded-md">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border border-border rounded-md">
           <FormField
             control={control}
             name="price"
@@ -687,16 +775,18 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
                 <FormLabel>Currency</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="truncate">
                       <SelectValue placeholder="Select currency" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {formOptions?.form_options?.currencies?.map((option: any) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {formOptions?.form_options?.currencies?.map(
+                      (option: any) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -718,14 +808,18 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
                 accept="image/*"
                 value={undefined}
                 onChange={(e) =>
-                  field.onChange((e.target as HTMLInputElement).files?.[0] || null)
+                  field.onChange(
+                    (e.target as HTMLInputElement).files?.[0] || null
+                  )
                 }
               />
             </FormControl>
 
             {bannerImage && (
               <div className="mt-4">
-                <p className="text-sm text-muted-foreground mb-2">Image Preview:</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Image Preview:
+                </p>
                 <img
                   src={
                     typeof bannerImage === "string"
@@ -733,7 +827,7 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
                       : URL.createObjectURL(bannerImage)
                   }
                   alt="Banner preview"
-                  className="w-full h-auto max-h-48 object-cover rounded-md border"
+                  className="w-full h-auto max-h-48 object-cover rounded-md border border-border"
                 />
               </div>
             )}
@@ -747,27 +841,74 @@ function StepRegistrationPricing({ formOptions }: { formOptions: any }) {
   );
 }
 
-
 // ----------------------------
 // Main Component
 // ----------------------------
+const steps = [
+  {
+    id: 1,
+    title: "Basic Info",
+    component: StepBasicInfo,
+    fields: [
+      "title",
+      "overview",
+      "description",
+      "event_type",
+      "course",
+      "who_can_join",
+    ] as const,
+  },
+  {
+    id: 2,
+    title: "Event Details",
+    component: StepEventDetails,
+    fields: ["learning_objectives", "agenda", "rules"] as const,
+  },
+  {
+    id: 3,
+    title: "Schedule",
+    component: StepSchedule,
+    fields: [
+      "start_time",
+      "end_time",
+      "timezone",
+      "location",
+      "meeting_link",
+    ] as const,
+  },
+  {
+    id: 4,
+    title: "Registration & Pricing",
+    component: StepRegistrationPricing,
+    fields: [
+      "max_attendees",
+      "registration_open",
+      "registration_deadline",
+      "is_paid",
+      "price",
+      "currency",
+      "banner_image",
+      "event_status",
+    ] as const,
+  },
+];
 
-// ✅ CHANGED: Added props for edit mode
 interface CreateEventPageProps {
   isEditMode?: boolean;
   eventSlug?: string;
 }
 
-export default function CreateEventPage({ isEditMode = false, eventSlug }: CreateEventPageProps) {
+export default function CreateEventPage({
+  isEditMode = false,
+  eventSlug,
+}: CreateEventPageProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [formOptions, setFormOptions] = useState<any>(null);
 
-  // ✅ CHANGED: Added loading states for initial data
   const [isFetchingOptions, setIsFetchingOptions] = useState(true);
   const [isFetchingEvent, setIsFetchingEvent] = useState(isEditMode);
 
-  // Fetch form options (runs for both create and edit)
   useEffect(() => {
     setIsFetchingOptions(true);
     api
@@ -809,7 +950,6 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
 
   const { handleSubmit, trigger, reset } = methods;
 
-  // ✅ CHANGED: Added useEffect to fetch event data in edit mode
   useEffect(() => {
     if (!isEditMode || !eventSlug) return;
 
@@ -833,7 +973,9 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
           meeting_link: eventData.meeting_link || "",
           max_attendees: eventData.max_attendees || 50,
           registration_open: eventData.registration_open ?? true,
-          registration_deadline: formatDateTimeForInput(eventData.registration_deadline),
+          registration_deadline: formatDateTimeForInput(
+            eventData.registration_deadline
+          ),
           is_paid: eventData.is_paid || false,
           event_status: eventData.event_status || "draft",
           price: eventData.price ? Number(eventData.price) : undefined,
@@ -855,33 +997,23 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     fetchEvent();
   }, [isEditMode, eventSlug, reset]);
 
-  // ✅ CHANGED: Updated onSubmit for CREATE (POST) and UPDATE (PUT)
   const onSubmit = async (data: EventFormData) => {
     setIsLoading(true);
     const formData = new FormData();
 
     Object.entries(data).forEach(([key, value]) => {
-      if (key === "banner_image") {
-        
-        // 1. If it's a new File, append it for upload
-        if (value instanceof File) {
-          formData.append(key, value);
-        } 
-        
-        // 2. If it's null/undefined, append an empty string to clear the image
-        else if (!value) { 
-          formData.append(key, "");
-        }
-
-        // 3. If it's a string (the existing URL), do nothing.
-        //    This tells the backend to "not change" the image.
-
-      } else if (Array.isArray(value)) {
-        formData.append(key, JSON.stringify(value));
-      } else if (value != null) {
-        formData.append(key, String(value));
-   }
-    });
+      if (key === "banner_image") {
+        if (value instanceof File) {
+          formData.append(key, value);
+        } else if (!value) {
+          formData.append(key, "");
+        }
+      } else if (Array.isArray(value)) {
+        formData.append(key, JSON.stringify(value));
+      } else if (value != null) {
+        formData.append(key, String(value));
+      }
+    });
 
     try {
       if (isEditMode) {
@@ -897,77 +1029,36 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
         reset();
         setCurrentStep(0);
       }
-      }  catch (err) {
-        const error = err as AxiosError<{ detail?: string; [key: string]: any }>;
-        const errorData = error.response?.data || {};
-        console.error("Backend validation error:", errorData);
+    } catch (err) {
+      const error = err as AxiosError<{ detail?: string; [key: string]: any }>;
+      const errorData = error.response?.data || {};
+      console.error("Backend validation error:", errorData);
 
-        let errorMessage = errorData.detail; // 1. Try to get the 'detail' message first.
-
-        if (!errorMessage) {
-          // 2. If no 'detail', find the first error key (e.g., "learning_objectives")
-          const firstErrorKey = Object.keys(errorData)[0];
-          const firstErrorValue = errorData[firstErrorKey];
-          
-          if (Array.isArray(firstErrorValue) && firstErrorValue.length > 0) {
-              // 3. Error is a list, e.g., [{"text": ["This field is blank"]}]
-              if (typeof firstErrorValue[0] === 'object' && firstErrorValue[0] !== null) {
-                  // 4. Get the first error from the nested object
-                  const nestedErrorKey = Object.keys(firstErrorValue[0])[0];
-                  errorMessage = firstErrorValue[0][nestedErrorKey][0];
-              } else {
-                  // 5. It's a simple list of strings
-                  errorMessage = firstErrorValue[0];
-              }
-          } else if (firstErrorKey) {
-              // 6. Give a helpful message
-              errorMessage = `Please check the '${firstErrorKey}' field for errors.`;
+      let errorMessage = errorData.detail;
+      if (!errorMessage) {
+        const firstErrorKey = Object.keys(errorData)[0];
+        const firstErrorValue = errorData[firstErrorKey];
+        if (Array.isArray(firstErrorValue) && firstErrorValue.length > 0) {
+          if (
+            typeof firstErrorValue[0] === "object" &&
+            firstErrorValue[0] !== null
+          ) {
+            const nestedErrorKey = Object.keys(firstErrorValue[0])[0];
+            errorMessage = firstErrorValue[0][nestedErrorKey][0];
+          } else {
+            errorMessage = firstErrorValue[0];
           }
+        } else if (firstErrorKey) {
+          errorMessage = `Please check the '${firstErrorKey}' field for errors.`;
         }
-
-        toast.error(errorMessage || "Something went wrong while saving the event.");
-
-      } finally {
-        setIsLoading(false);
       }
+      toast.error(
+        errorMessage || "Something went wrong while saving the event."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const steps = [
-    {
-      id: 1,
-      title: "Basic Info",
-      component: <StepBasicInfo formOptions={formOptions} />,
-      fields: ["title", "overview", "description", "event_type", "course", "who_can_join"] as const,
-    },
-    {
-      id: 2,
-      title: "Event Details",
-      component: <StepEventDetails />,
-      fields: ["learning_objectives", "agenda", "rules"] as const,
-    },
-    {
-      id: 3,
-      title: "Schedule",
-      component: <StepSchedule />,
-      fields: ["start_time", "end_time", "timezone", "location", "meeting_link"] as const,
-    },
-    {
-      id: 4,
-      title: "Registration & Pricing",
-      component: <StepRegistrationPricing formOptions={formOptions} />,
-      fields: [
-        "max_attendees",
-        "registration_open",
-        "registration_deadline",
-        "is_paid",
-        "price",
-        "currency",
-        "banner_image",
-        "event_status",
-      ] as const,
-    },
-    
-  ];
 
   const nextStep = async () => {
     const currentFields = steps[currentStep].fields;
@@ -983,12 +1074,12 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     if (currentStep > 0) setCurrentStep((s) => s - 1);
   };
 
-  // ✅ CHANGED: Added combined loading state
   if (isFetchingOptions || isFetchingEvent) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-        <p className="ml-2 text-gray-500">
+      <div className="flex flex-col justify-center items-center h-screen">
+        {/* UPDATED: Themed loader */}
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2 text-muted-foreground">
           {isFetchingEvent ? "Loading event data..." : "Loading form options..."}
         </p>
       </div>
@@ -996,8 +1087,9 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
   }
 
   return (
-    <Card className="max-w-4xl mx-auto my-8 border border-gray-200 rounded text-black shadow-none">
-      <CardHeader>
+    // UPDATED: Responsive and themed card
+    <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0">
+      <CardHeader className="p-6">
         <CardTitle className="text-xl">
           {isEditMode ? "Edit Event" : "Create New Event"}
         </CardTitle>
@@ -1008,27 +1100,53 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="pt-6">
-        {/* Stepper */}
-        <div className="flex items-center mb-8 border-b border-gray-200 pb-2 overflow-x-auto">
+      <CardContent className="pt-0 p-6">
+        {/* --- Responsive Stepper --- */}
+        {/* Mobile Stepper */}
+        <div className="md:hidden mb-6">
+          <p className="text-sm font-semibold text-primary">
+            Step {currentStep + 1} of {steps.length}
+          </p>
+          <h2 className="text-lg font-semibold text-foreground">
+            {steps[currentStep].title}
+          </h2>
+        </div>
+
+        {/* Desktop Stepper (Themed) */}
+        <div className="hidden md:flex items-center mb-8 border-b border-border pb-4">
           {steps.map((step, index) => (
             <React.Fragment key={step.id}>
               <div
-                className={`flex items-center text-sm transition-colors ${
-                  currentStep === index ? "text-blue-600 font-semibold" : "text-gray-400"
-                }`}
+                className={cn(
+                  "flex items-center text-sm transition-colors duration-300",
+                  currentStep > index
+                    ? "text-primary"
+                    : currentStep === index
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground"
+                )}
               >
                 <div
-                  className={`w-6 h-6 rounded-full border-2 mr-2 flex items-center justify-center ${
-                    currentStep === index ? "border-blue-600" : "border-gray-300"
-                  }`}
+                  className={cn(
+                    "flex items-center justify-center w-6 h-6 rounded-full border-2 mr-2",
+                    currentStep > index
+                      ? "bg-primary border-primary text-primary-foreground"
+                      : currentStep === index
+                      ? "border-primary"
+                      : "border-border"
+                  )}
                 >
                   {currentStep > index ? <Check size={14} /> : step.id}
                 </div>
                 {step.title}
               </div>
               {index < steps.length - 1 && (
-                <div className="flex-1 border-t-2 border-gray-200 mx-4" />
+                <div
+                  className={cn(
+                    "flex-1 border-t-2 mx-4 transition-colors",
+                    currentStep > index ? "border-primary" : "border-border"
+                  )}
+                />
               )}
             </React.Fragment>
           ))}
@@ -1036,7 +1154,11 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
 
         {/* Form Content */}
         <FormProvider {...methods}>
-          <form id="event-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+          <form
+            id="event-form"
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-6"
+          >
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -1045,34 +1167,39 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
                 exit={{ x: -30, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
               >
-                {steps[currentStep].component}
+                {/* Render the component for the current step */}
+                {React.createElement(steps[currentStep].component, {
+                  formOptions,
+                })}
               </motion.div>
             </AnimatePresence>
           </form>
         </FormProvider>
       </CardContent>
 
-      <CardFooter className="flex justify-between border-t pt-6">
-        <div>
+      {/* UPDATED: Themed and Responsive Footer */}
+      <CardFooter className="flex flex-col-reverse sm:flex-row justify-between border-t border-border p-6 gap-2">
+        <div className="w-full sm:w-auto">
           {currentStep > 0 && (
             <Button
               onClick={prevStep}
               variant="outline"
               disabled={isLoading}
-              className="rounded"
+              className="rounded-md w-full sm:w-auto"
             >
               <ArrowLeft className="mr-2" size={16} /> Previous
             </Button>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 w-full sm:w-auto">
           {currentStep < steps.length - 1 ? (
             <Button
-              type="button" // ⬅️ ADD THIS LINE
+              type="button"
               onClick={nextStep}
               disabled={isLoading}
-              className="rounded bg-[#2694C6] hover:bg-[#1f7ba5]"
+              variant="secondary" // Use Teal
+              className="rounded-md"
             >
               Next <ArrowRight className="ml-2" size={16} />
             </Button>
@@ -1081,7 +1208,7 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
               type="submit"
               form="event-form"
               disabled={isLoading}
-              className="rounded bg-green-600 hover:bg-green-700 w-[160px]"
+              className="rounded-md w-full sm:w-[160px]"
             >
               {isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1102,5 +1229,3 @@ export default function CreateEventPage({ isEditMode = false, eventSlug }: Creat
     </Card>
   );
 }
-
-

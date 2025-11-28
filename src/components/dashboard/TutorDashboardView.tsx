@@ -153,10 +153,10 @@ export default function TutorDashboardClient() {
       const [dashboardRes, requestsRes, invitesRes] = await Promise.all([
         api.get("/users/dashboard/tutor/", { headers }),
         isAdmin
-          ? api.get("/organizations/api/join-requests/", { headers })
+          ? api.get("/organizations/join-requests/", { headers })
           : Promise.resolve(null),
         isAdmin
-          ? api.get("/organizations/api/sent-invitations/", { headers })
+          ? api.get("/organizations/sent-invitations/", { headers })
           : Promise.resolve(null),
       ]);
       setData(dashboardRes.data);
@@ -181,7 +181,7 @@ export default function TutorDashboardClient() {
   const handleApproveRequest = async (id: number) => {
     try {
       await api.post(
-        `/organizations/api/join-requests/${id}/approve/`,
+        `/organizations/join-requests/${id}/approve/`,
         {},
         { headers: { "X-Organization-Slug": activeSlug } }
       );
@@ -194,7 +194,7 @@ export default function TutorDashboardClient() {
   const handleRejectRequest = async (id: number) => {
     try {
       await api.post(
-        `/organizations/api/join-requests/${id}/reject/`,
+        `/organizations/join-requests/${id}/reject/`,
         {},
         { headers: { "X-Organization-Slug": activeSlug } }
       );
@@ -207,7 +207,7 @@ export default function TutorDashboardClient() {
   const handleRevokeInvitation = async (id: number) => {
     try {
       await api.post(
-        `/organizations/api/sent-invitations/${id}/revoke/`,
+        `/organizations/sent-invitations/${id}/revoke/`,
         {},
         { headers: { "X-Organization-Slug": activeSlug } }
       );
@@ -700,7 +700,7 @@ function InviteDialog({
     }
     try {
       await api.post(
-        "/organizations/api/team/invite/",
+        "/organizations/team/invite/",
         { email, role },
         { headers: { "X-Organization-Slug": activeSlug } }
       );

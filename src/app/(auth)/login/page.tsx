@@ -6,9 +6,14 @@ import { useRouter } from "next/navigation";
 import PublicRoute from "@/components/PublicRoute";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import Image from "next/image";
+
+const PRIMARY_TEXT_CLASS = "text-[#2694C6]";
+const PRIMARY_BUTTON_CLASS = "bg-primary hover:bg-[#1f7ba5] transition-colors"; 
 
 export default function LogInPage() {
-  const { login } = useAuth(); // ✅ 2. Get the login function from the context
+  const { login } = useAuth(); 
+  const router = useRouter(); 
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -21,10 +26,7 @@ export default function LogInPage() {
     setError(null);
 
     try {
-      // ✅ 3. Call the login function from the context
       await login(username, password);
-      // The context will handle saving tokens, setting state, and redirecting
-      
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -33,37 +35,34 @@ export default function LogInPage() {
   };
 
   return (
-    <PublicRoute>
-    <div className="flex items-center flex-col justify-center">
-      <h1 className="text-3xl font-bold text-[#2694C6] mb-4">
-        Sign In
-      </h1>
+      <div className="mx-auto w-full max-w-sm md:max-w-md"> 
 
-      <div className="w-full max-w-xl p-4 mx-4 bg-white rounded border border-gray-200">
-        <div className="text-center mb-2">
-          <p className="text-gray-600 text-lg text-bold">
-            Access your courses, track progress, and connect with your community.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-          {/* Illustration */}
-          <div className="hidden md:flex flex-col items-center justify-center">
-            <img
-              src="/auth/LogIn.svg"
-              alt="A person looking at educational items, illustrating learning"
-              width="256"
-              height="320"
-              className="object-contain"
-            />
+        <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+          
+          <div className="text-center p-6 sm:p-7 border-b border-gray-100 bg-background"> 
+            <div className="mx-auto mb-3" style={{ width: '180px', height: '64px' }}>
+               <Image
+                src="/logo.png"
+                alt="Evuka Logo"
+                width={180}
+                height={64}
+                className="object-contain"
+              />
+            </div>
+            <h1 className={`text-xl font-bold text-black`}>
+              Sign In to evuka
+            </h1>
+            <p className="text-gray-600 text-sm mt-1">
+              Access your personalized learning portal.
+            </p>
           </div>
-
-          {/* Login Form */}
-          <div className="w-full">
-            <form onSubmit={handleLogin} className="space-y-2">
+          
+          <div className="w-full p-6 sm:p-7"> 
+            
+            <form onSubmit={handleLogin} className="space-y-4">
               <Input
                 type="text"
-                placeholder="Username"
+                placeholder="Username or Email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -76,43 +75,39 @@ export default function LogInPage() {
                 required
               />
 
-              {/* --- ✅ ADD THIS BLOCK --- */}
               <div className="text-right">
                 <Link 
                   href="/reset-password" 
-                  className="text-sm text-[#2694C6] hover:underline"
+                  className={`text-sm ${PRIMARY_TEXT_CLASS} hover:underline`}
                 >
                   Forgot Password?
                 </Link>
               </div>
-              {/* --- END OF ADDED BLOCK --- */}
 
               {error && (
-                <p className="text-red-500 text-sm mb-1 text-center">{error}</p>
+                <p className="text-red-500 text-sm mt-2 text-center">{error}</p>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#2694C6] text-white py-2 rounded-md hover:bg-[#207ea9] transition-colors"
-                style={{ borderRadius: "2px" }}
+                className={`w-full text-white py-3 rounded-md font-semibold disabled:opacity-70 ${PRIMARY_BUTTON_CLASS}`}
               >
                 {loading ? "Signing In..." : "Log In"}
               </button>
             </form>
           </div>
         </div>
-      </div>
+        
+        <div className="mt-6 text-center">
+          <p className="text-gray-600">
+            Don't have an account?{" "}
+            <Link href="/register" className={`${PRIMARY_TEXT_CLASS} font-medium hover:underline`}>
+              Create a Free Account
+            </Link>
+          </p>
+        </div>
 
-      <div className="mt-8 text-center">
-        <p className="text-gray-600">
-          Don't have an account?{" "}
-          <a href="/register" className="text-[#2694C6] hover:underline">
-            Sign Up
-          </a>
-        </p>
       </div>
-    </div>
-    </PublicRoute>
   );
 }

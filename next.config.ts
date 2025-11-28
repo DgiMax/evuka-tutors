@@ -5,13 +5,13 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'http',
-        hostname: 'localhost', // must match the URL exactly
-        pathname: '/e-vuka/**', // allow all images in your bucket
+        hostname: '127.0.0.1',
+        pathname: '/e-vuka/**',
       },
       {
         protocol: 'http',
-        hostname: 'localhost',
-        pathname: '/media/**', // fallback for Django MEDIA_URL
+        hostname: '127.0.0.1',
+        pathname: '/media/**',
       },
       {
         protocol: 'https',

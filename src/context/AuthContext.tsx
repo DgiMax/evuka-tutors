@@ -1,4 +1,3 @@
-// contexts/AuthContext.tsx
 "use client";
 
 import {
@@ -10,6 +9,14 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api/axios";
+
+// 1. AXIOS TYPE DECLARATION
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    _skipAuthRefresh?: boolean;
+    _retry?: boolean;
+  }
+}
 
 /* TYPES -------------------------------------------------------------- */
 
@@ -40,7 +47,7 @@ interface AuthContextType {
   verifyEmail: (token: string) => Promise<void>;
   resendVerification: (email: string) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
-  fetchCurrentUser: () => Promise<User | null>; 
+  fetchCurrentUser: (skipRefresh?: boolean) => Promise<User | null>;
 }
 
 /* CONTEXT -------------------------------------------------------------- */
@@ -60,15 +67,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (error) => {
         const originalRequest = error.config;
 
-        // If 401 → Try to refresh
+        if (originalRequest._skipAuthRefresh) {
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
           try {
-            await api.post("/users/refresh/"); // this uses cookies
-            return api(originalRequest); // retry the failed request
+            await api.post("/users/refresh/");
+            return api(originalRequest);
           } catch {
-            // Refresh failed → Logout
             setUser(null);
             router.push("/login?session_expired=true");
             return Promise.reject(error);
@@ -84,21 +93,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /* FETCH CURRENT USER ------------------------------------------------ */
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = async (skipRefresh = false) => {
     try {
-      const response = await api.get<User>("/users/me/");
+      const response = await api.get<User>("/users/me/", {
+        _skipAuthRefresh: skipRefresh,
+      });
       setUser(response.data);
-      return response.data; // Returns User
+      return response.data;
     } catch {
       setUser(null);
-      return null; // Returns null
+      return null;
     }
   };
 
   useEffect(() => {
     const init = async () => {
-      // NOTE: We don't await/use the return value here, but the function signature is now correct.
-      await fetchCurrentUser(); 
+      await fetchCurrentUser(true);
       setLoading(false);
     };
     init();
@@ -119,39 +129,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       "/reset-password",
       "/check-email",
     ];
-    
-    // '/onboarding' is NOT in publicRoutes.
 
-    const isPublicRoute = publicRoutes.some((route) =>
-      path.startsWith(route)
-    );
-    
+    const isPublicRoute = publicRoutes.some((route) => {
+      if (path === route) return true;
+      if (path.startsWith(`${route}/`)) return true;
+      return false;
+    });
+
     const isOnboardingRoute = path.startsWith("/onboarding");
 
-    // --- 1. UNAUTHENTICATED REDIRECT ---
     if (!user) {
-        // If the user is not logged in AND they are not on a public route, redirect to login.
-        if (!isPublicRoute) {
-            // Save the current path to redirect back after login
-            sessionStorage.setItem("postLoginRedirect", path);
-            router.replace("/login");
-        }
-        return; // Stop further checks if user is null
+      if (!isPublicRoute) {
+        sessionStorage.setItem("postLoginRedirect", path);
+        router.replace("/login");
+      }
+      return;
     }
 
-    // --- 2. AUTHENTICATED REDIRECTS ---
-    
-    // a) Redirect users away from public routes once they log in
     if (user && isPublicRoute) {
-        router.replace("/");
-        return;
+      router.replace("/");
+      return;
     }
 
-    // b) Redirect new users who haven't selected a role/profile to /onboarding
     if (user && !user.is_tutor && !user.is_student && !isOnboardingRoute) {
-        router.replace("/onboarding");
+      router.replace("/onboarding");
     }
-    
   }, [user, loading, router]);
 
   /* LOGIN ------------------------------------------------------------- */
@@ -159,21 +161,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (username: string, password: string) => {
     try {
       await api.post("/users/login/", { username, password });
-
-      // Fetch latest user data and set state
-      const currentUserData = await fetchCurrentUser();
+      await fetchCurrentUser(false);
 
       const redirect = sessionStorage.getItem("postLoginRedirect");
 
-      // Check 2: Redirect to saved path or home
       if (redirect) {
         sessionStorage.removeItem("postLoginRedirect");
         router.push(redirect);
       } else {
         router.push("/");
       }
-    } catch {
-      throw new Error("Login failed. Please check your credentials.");
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -191,7 +190,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (username: string, email: string, password: string) => {
     await api.post("/users/register/", { username, email, password });
-    // Redirect to a page that tells the user to check their email
     router.push("/check-email");
   };
 
@@ -217,6 +215,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       new_password: newPassword,
     });
   };
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider

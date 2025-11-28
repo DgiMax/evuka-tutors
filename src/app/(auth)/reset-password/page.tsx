@@ -5,6 +5,10 @@ import Input from "@/components/ui/FormInput";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import PublicRoute from "@/components/PublicRoute";
+import Image from "next/image"; // Added Image import for logo
+
+const PRIMARY_TEXT_CLASS = "text-[#2694C6]";
+const PRIMARY_BUTTON_CLASS = "bg-primary hover:bg-[#1f7ba5] transition-colors"; 
 
 export default function ForgotPasswordPage() {
   const { forgotPassword } = useAuth(); // Get function from context
@@ -34,28 +38,56 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <PublicRoute>
-      <div className="flex items-center flex-col justify-center">
-        <h1 className="text-2xl font-bold text-[#2694C6] mb-2">
-          Forgot Your Password?
-        </h1>
-        <div className="w-full max-w-lg p-6 mx-4 bg-white rounded border border-gray-200">
-          <img
-            src="/auth/ForgotPassword.svg"
-            alt="Forgot Password Illustration"
-            className="object-contain w-48 h-36 mb-4 mx-auto"
-          />
+    // Outer container matching the login page width
+    <div className="mx-auto w-full max-w-sm md:max-w-md"> 
+
+      {/* Card Wrapper - matching login page's rounded-md, border, and overflow */}
+      <div className="bg-white rounded-md border border-gray-200 overflow-hidden">
+        
+        {/* Header Section - Identical style and structure to the login page */}
+        <div className="text-center p-6 sm:p-7 border-b border-gray-100 bg-background"> 
+          <div className="mx-auto mb-3" style={{ width: '180px', height: '64px' }}>
+             <Image
+                src="/logo.png" // Assumed path from your login page
+                alt="Evuka Logo"
+                width={180}
+                height={64}
+                className="object-contain"
+              />
+          </div>
+          <h1 className={`text-xl font-bold text-black`}>
+            Forgot Your Password?
+          </h1>
+          <p className="text-gray-600 text-sm mt-1">
+            We'll help you get back into your account.
+          </p>
+        </div>
+        
+        {/* Content Body */}
+        <div className="w-full p-6 sm:p-7"> 
+          
           {/* Conditionally render success message or the form */}
           {message ? (
             <div className="text-center">
-              <p className="text-green-600 text-lg">{message}</p>
+              <p className="text-green-600 text-lg font-medium">{message}</p>
+              
+              {/* Optional: Add a button to return to login */}
+              <Link href="/login" className="block w-full mt-6">
+                <button 
+                    type="button"
+                    className={`w-full text-white py-3 rounded-md font-semibold ${PRIMARY_BUTTON_CLASS}`}
+                >
+                    ← Back to Log In
+                </button>
+              </Link>
             </div>
+            
           ) : (
             <>
-              <p className="text-center text-gray-600 text-lg mb-4">
-                Enter your email address and we’ll send you instructions to reset your password.
+              <p className="text-center text-gray-600 text-sm mb-4">
+                Enter your email address below and we'll send you a link to reset your password.
               </p>
-              <form onSubmit={handleSubmit} className="space-y-2">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <Input
                   type="email"
                   placeholder="Enter Your Email"
@@ -63,24 +95,33 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+                
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#2694C6] text-white py-2 rounded hover:bg-[#207ea9] transition-colors disabled:bg-gray-400"
+                  className={`w-full text-white py-3 rounded-md font-semibold disabled:opacity-70 disabled:cursor-not-allowed ${PRIMARY_BUTTON_CLASS}`}
                 >
                   {loading ? "Sending..." : "Send Reset Link"}
                 </button>
               </form>
             </>
           )}
-          <div className="text-center mt-4">
-            <p className="text-gray-500 text-md">
-              Back to <Link href="/login" className="text-[#2694C6] hover:underline">Log In</Link>
-            </p>
-          </div>
+
         </div>
       </div>
-    </PublicRoute>
+      
+      {/* Footer Link - Consistent look for the 'back to login' link */}
+      <div className="mt-6 text-center">
+        <p className="text-gray-600">
+          Remember your password?{" "}
+          <Link href="/login" className={`${PRIMARY_TEXT_CLASS} font-medium hover:underline`}>
+            Log In
+          </Link>
+        </p>
+      </div>
+
+    </div>
   );
 }
