@@ -1,32 +1,42 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone", // <--- CRITICAL for the Dockerfile I gave you
+  output: "standalone",
   reactStrictMode: true,
+
   images: {
     remotePatterns: [
-      // --- Production Storage (MinIO) ---
       {
-        protocol: 'https',
-        hostname: 'storage.e-vuka.com',
-        port: '',
-        pathname: '/**', // Allows accessing all buckets (e-vuka, e-vuka-static, etc.)
+        protocol: "https",
+        hostname: "storage.e-vuka.com",
+        port: "",
+        pathname: "/**",
       },
-      // --- Local Development (Keep these for testing) ---
+
       {
-        protocol: 'http',
-        hostname: '127.0.0.1',
-        pathname: '/e-vuka/**',
+        protocol: "http",
+        hostname: "minio",
+        port: "9000",
+        pathname: "/**",
+      },
+
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "",
+        pathname: "/e-vuka/**",
       },
       {
-        protocol: 'http',
-        hostname: '127.0.0.1',
-        pathname: '/media/**',
+        protocol: "http",
+        hostname: "127.0.0.1",
+        port: "",
+        pathname: "/media/**",
       },
-      // --- External Placeholders ---
+
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
-        pathname: '/**',
+        protocol: "https",
+        hostname: "placehold.co",
+        port: "",
+        pathname: "/**",
       },
     ],
   },
