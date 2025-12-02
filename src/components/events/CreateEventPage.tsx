@@ -1089,7 +1089,7 @@ export default function CreateEventPage({
   return (
     // UPDATED: Responsive and themed card
     <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0">
-      <CardHeader className="p-6">
+      <CardHeader className="p-6 bg-muted/10 border-b border-border">
         <CardTitle className="text-xl">
           {isEditMode ? "Edit Event" : "Create New Event"}
         </CardTitle>

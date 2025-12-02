@@ -5,6 +5,7 @@ import { AuthProvider } from '@/context/AuthContext';
 import TanstackQueryProvider from '@/providers/TanstackQueryProvider';
 import { ActiveContext } from '@/context/ActiveContext';
 import api from '@/lib/api/axios';
+import { GoogleProvider } from "@/context/GoogleProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
@@ -51,12 +52,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthProvider>
-      <ActiveContext.Provider value={{ activeSlug, setActiveSlug }}>
-        <TanstackQueryProvider>
-          {children}
-        </TanstackQueryProvider>
-      </ActiveContext.Provider>
-    </AuthProvider>
+    <GoogleProvider>
+      <AuthProvider>
+        <ActiveContext.Provider value={{ activeSlug, setActiveSlug }}>
+          <TanstackQueryProvider>
+            {children}
+          </TanstackQueryProvider>
+        </ActiveContext.Provider>
+      </AuthProvider>
+    </GoogleProvider>
   );
 }

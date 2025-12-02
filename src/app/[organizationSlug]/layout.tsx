@@ -10,6 +10,7 @@ export default async function OrganizationLayout({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
+  console.log(organizationSlug)
 
   return (
     <ProtectedRoute>

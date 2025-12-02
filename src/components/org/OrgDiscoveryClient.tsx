@@ -87,7 +87,7 @@ export default function OrgDiscoveryClient() {
         if (debouncedSearch) params.append("search", debouncedSearch);
 
         const res = await api.get(
-          `/community/api/discover/?${params.toString()}`
+          `/community/discover/?${params.toString()}`
         );
         setOrgs(res.data.results || res.data); // Handle pagination
       } catch (error) {
@@ -251,7 +251,7 @@ function JoinButton({
         organization: org.slug,
         message: message,
       };
-      await api.post("/community/api/request-join/", payload);
+      await api.post("/community/request-join/", payload);
       toast.success(`Request sent to ${org.name}!`);
       onRequestSent();
       setOpen(false);

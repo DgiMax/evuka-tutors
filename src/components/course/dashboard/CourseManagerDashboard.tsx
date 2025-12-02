@@ -2,10 +2,9 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import React, { useCallback, useMemo } from "react";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
   BookOpen,
   Users,
@@ -17,7 +16,6 @@ import {
 
 import api from "@/lib/api/axios";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
-import { cn } from "@/lib/utils";
 
 // --- Import Sub-Components ---
 import CurriculumManagerTab from "./CurriculumManagerTab";
@@ -28,7 +26,7 @@ import SettingsTab from "./SettingsTab";
 // --- Import Shared Types ---
 import { CourseManagementData, FormOptionsData } from "./SharedTypes";
 
-// --- UI Components (Assumed to be imported) ---
+// --- UI Components ---
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -38,7 +36,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-// UPDATED: Loader is now full-screen for a cleaner initial load
 const LoaderState: React.FC = () => (
   <div className="flex flex-col justify-center items-center h-screen bg-background">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -46,7 +43,6 @@ const LoaderState: React.FC = () => (
   </div>
 );
 
-// NEW: Define nav items in one place for DRY code
 const navItems = [
   { value: "curriculum", label: "Curriculum", icon: BookOpen },
   { value: "assessments", label: "Assessments", icon: ClipboardList },
@@ -57,12 +53,39 @@ const navItems = [
 
 export default function CourseManagerDashboard() {
   const params = useParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const courseSlug = params.slug as string;
-
   const { activeSlug: activeOrgSlug } = useActiveOrg();
-  const [activeTab, setActiveTab] = useState("curriculum");
 
-  // --- 1. DASHBOARD DATA FETCH (Unchanged) ---
+  // --- 1. DERIVE ACTIVE TAB FROM URL (Source of Truth) ---
+  // If ?tab=settings exists, use it. Otherwise default to 'curriculum'.
+  const activeTab = useMemo(() => {
+    const tabFromUrl = searchParams.get("tab");
+    // Validate that the tab exists in our list, otherwise fallback to default
+    const isValid = navItems.some((item) => item.value === tabFromUrl);
+    return isValid && tabFromUrl ? tabFromUrl : "curriculum";
+  }, [searchParams]);
+
+  // --- 2. HANDLE TAB CHANGE (Update URL) ---
+  const handleTabChange = useCallback((value: string) => {
+    // Create a new URLSearchParams object to keep other params if they exist
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    current.set("tab", value);
+
+    // Cast to string
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+
+    // Push new URL. 
+    // scroll: false prevents the page from jumping to top on tab switch.
+    router.push(`${pathname}${query}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+
+  // --- 3. DASHBOARD DATA FETCH ---
   const {
     data: dashboardData,
     isLoading: isDashboardLoading,
@@ -76,7 +99,7 @@ export default function CourseManagerDashboard() {
     enabled: !!courseSlug,
   });
 
-  // --- 2. FORM OPTIONS FETCH (Unchanged) ---
+  // --- 4. FORM OPTIONS FETCH ---
   const { data: formOptions, isLoading: isFormOptionsLoading } =
     useQuery<FormOptionsData>({
       queryKey: ["formOptions", activeOrgSlug],
@@ -116,28 +139,17 @@ export default function CourseManagerDashboard() {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange} // 🟢 Use our new handler
         className="space-y-4"
       >
-        {/* --- NEW: Mobile Select (Dropdown) Navigation --- */}
+        {/* Mobile Select Navigation */}
         <div className="md:hidden">
-          <Select value={activeTab} onValueChange={setActiveTab}>
-            {/* ✅ UPDATED: 
-              1. w-full: Makes it full width.
-              2. h-12: Increases height for better tappability.
-              3. px-4 py-3: Explicit padding.
-              4. text-base: Slightly larger font.
-            */}
+          <Select value={activeTab} onValueChange={handleTabChange}>
             <SelectTrigger className="w-full h-12 px-4 py-3 text-base">
               <SelectValue placeholder="Select a section..." />
             </SelectTrigger>
-            {/*
-              ✅ UPDATED: 
-              1. w-[--radix-select-trigger-width]: Makes dropdown match trigger width.
-            */}
             <SelectContent className="w-[--radix-select-trigger-width]">
               {navItems.map((item) => (
-                // ✅ UPDATED: Added py-3 and text-base for larger tap targets
                 <SelectItem
                   key={item.value}
                   value={item.value}
@@ -153,7 +165,7 @@ export default function CourseManagerDashboard() {
           </Select>
         </div>
 
-        {/* --- UPDATED: Desktop Tabs Navigation (Hidden on mobile) --- */}
+        {/* Desktop Tabs Navigation */}
         <TabsList className="hidden md:grid w-full grid-cols-5 h-auto">
           {navItems.map((item) => (
             <TabsTrigger key={item.value} value={item.value}>
@@ -163,7 +175,7 @@ export default function CourseManagerDashboard() {
           ))}
         </TabsList>
 
-        {/* --- Tab Content Components (Data is now guaranteed to exist here) --- */}
+        {/* Tab Content Components */}
         <TabsContent value="curriculum" className="mt-0 md:mt-6">
           <CurriculumManagerTab
             courseSlug={courseSlug}

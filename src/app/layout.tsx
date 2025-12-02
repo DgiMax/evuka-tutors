@@ -10,7 +10,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "D-Vuka | Tutors",
+  title: "evuka | Tutors",
   description: "Desire to Empower.",
 };
 

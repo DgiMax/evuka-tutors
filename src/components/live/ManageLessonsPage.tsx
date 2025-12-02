@@ -104,11 +104,7 @@ export default function ManageLessonsPage() {
   // 2. FIXED: Join function to redirect to the correct nested Jitsi host page
   // We no longer fetch the meeting_url here, we just redirect.
   const handleJoin = (lessonId: number) => {
-    const destinationPath = `/courses/${slug}/live-classes/${class_slug}/manage/class`;
-    
-    // We navigate to the Jitsi host page, passing the specific lesson ID
-    // which the host page will use to make its own API call.
-    router.push(`${destinationPath}?lessonId=${lessonId}`); 
+    router.push(`/live-session/${lessonId}`); 
   };
 
   if (loading) {

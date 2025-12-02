@@ -288,9 +288,6 @@ export default function CourseCreatePage({
 
     const formData = new FormData();
 
-    // ✅ --- FIX: --- ✅
-    // 1. Manually append fields instead of Object.keys() to avoid adding 'modules' incorrectly.
-    // 2. This logic matches your original (working) code.
     formData.append("title", data.title);
     formData.append("short_description", data.short_description);
     formData.append("long_description", data.long_description);
@@ -344,21 +341,6 @@ export default function CourseCreatePage({
       JSON.stringify(data.learning_objectives)
     );
     formData.append("modules", JSON.stringify(modulesToSubmit));
-    // --- ✅ END OF FIX --- ✅
-
-    // (This console log is still here for you to debug)
-    console.log("=====================================");
-    console.log("Submitting FormData to server:");
-    for (let [key, value] of formData.entries()) {
-      if (key === 'modules' || key === 'learning_objectives') {
-        console.log(`[JSON] ${key}:`, JSON.parse(value as string));
-      } else if (value instanceof File) {
-        console.log(`[FILE] ${key}:`, { name: value.name, size: value.size, type: value.type });
-      } else {
-        console.log(`${key}:`, `"${value}"`);
-      }
-    }
-    console.log("=====================================");
 
     try {
       const response = isEditMode
@@ -529,7 +511,7 @@ export default function CourseCreatePage({
   // --- Render ---
   return (
     <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0">
-      <CardHeader className="p-6">
+      <CardHeader className="p-6 bg-muted/10 border-b border-border">
         <CardTitle className="text-xl">
           {isEditMode ? "Edit Course" : "Create a New Course"}{" "}
           {activeSlug ? "for Organization" : "(Independent)"}

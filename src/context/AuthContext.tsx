@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import api from "@/lib/api/axios";
 
 // 1. AXIOS TYPE DECLARATION
@@ -56,10 +56,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
+  const pathname = usePathname(); // Better than window.location.pathname for Next.js
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* TOKEN AUTO-REFRESH LOGIC ----------------------------------------- */
+  /* TOKEN AUTO-REFRESH LOGIC (FIXED) ----------------------------------- */
 
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
@@ -67,20 +68,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       async (error) => {
         const originalRequest = error.config;
 
-        if (originalRequest._skipAuthRefresh) {
+        // 1. Skip refresh for auth endpoints to prevent loops
+        const skipFor = ["/users/login/", "/users/register/", "/users/verify-email/"];
+        if (skipFor.some((path) => originalRequest?.url?.includes(path))) {
           return Promise.reject(error);
         }
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // 2. Prevent infinite loops if already retried
+        if (originalRequest._retry) {
+          return Promise.reject(error);
+        }
+
+        // 3. Handle 401 Unauthorized
+        if (error.response?.status === 401) {
           originalRequest._retry = true;
 
           try {
-            await api.post("/users/refresh/");
+            // Attempt refresh
+            await api.post("/users/refresh/", null, {
+                _skipAuthRefresh: true, // Important: Don't intercept this call itself
+            });
+
+            // Retry original request
             return api(originalRequest);
-          } catch {
+          } catch (refreshError) {
+            // Refresh failed = Session Expired
             setUser(null);
-            router.push("/login?session_expired=true");
-            return Promise.reject(error);
+            // Optional: Add ?session_expired=true logic if you want
+            return Promise.reject(refreshError);
           }
         }
 
@@ -89,26 +104,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     return () => api.interceptors.response.eject(interceptor);
-  }, [router]);
+  }, []);
 
   /* FETCH CURRENT USER ------------------------------------------------ */
 
   const fetchCurrentUser = async (skipRefresh = false) => {
     try {
-      const response = await api.get<User>("/users/me/", {
-        _skipAuthRefresh: skipRefresh,
-      });
+      // Don't use skipRefresh in the config unless you really mean to skip the INTERCEPTOR logic
+      // usually fetching me should allow refresh if token is stale
+      const response = await api.get<User>("/users/me/");
       setUser(response.data);
       return response.data;
     } catch {
-      setUser(null);
+      // Do NOT set user to null here immediately, let the interceptor handle 401s.
+      // If it's a network error, we don't want to logout the user.
+      // Only set null if it's strictly a 401 that failed refresh (handled above) 
+      // or if we are doing an initial check.
       return null;
     }
   };
 
+  /* INITIAL LOAD ------------------------------------------------------- */
+  
   useEffect(() => {
     const init = async () => {
-      await fetchCurrentUser(true);
+      const userData = await fetchCurrentUser();
+      if (!userData) {
+          setUser(null);
+      }
       setLoading(false);
     };
     init();
@@ -119,7 +142,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
-    const path = window.location.pathname;
+    // Use Next.js pathname hook instead of window.location
+    const path = pathname;
 
     const publicRoutes = [
       "/login",
@@ -132,36 +156,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const isPublicRoute = publicRoutes.some((route) => {
       if (path === route) return true;
-      if (path.startsWith(`${route}/`)) return true;
+      if (path?.startsWith(`${route}/`)) return true;
       return false;
     });
 
-    const isOnboardingRoute = path.startsWith("/onboarding");
+    const isOnboardingRoute = path?.startsWith("/onboarding");
 
+    // 1. Not Logged In
     if (!user) {
       if (!isPublicRoute) {
-        sessionStorage.setItem("postLoginRedirect", path);
+        // Save where they were trying to go
+        sessionStorage.setItem("postLoginRedirect", path || "/");
         router.replace("/login");
       }
       return;
     }
 
+    // 2. Logged In but on Public Route -> Go Home
     if (user && isPublicRoute) {
       router.replace("/");
       return;
     }
 
+    // 3. Logged In but incomplete profile -> Onboarding
     if (user && !user.is_tutor && !user.is_student && !isOnboardingRoute) {
       router.replace("/onboarding");
     }
-  }, [user, loading, router]);
+  }, [user, loading, pathname, router]);
 
   /* LOGIN ------------------------------------------------------------- */
 
   const login = async (username: string, password: string) => {
     try {
       await api.post("/users/login/", { username, password });
-      await fetchCurrentUser(false);
+      const userData = await fetchCurrentUser(); // Get fresh user data
 
       const redirect = sessionStorage.getItem("postLoginRedirect");
 
@@ -216,10 +244,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  if (loading) {
-    return null;
-  }
-
   return (
     <AuthContext.Provider
       value={{
@@ -236,7 +260,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         fetchCurrentUser,
       }}
     >
-      {children}
+      {/* Standard pattern: Don't render children until initial load is done 
+         to prevent redirects flashing 
+      */}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

@@ -20,10 +20,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// --- Interfaces ---
+// --- 1. FIXED INTERFACES ---
+// We match the "OrganizationSimpleSerializer" structure here
+interface OrganizationSimple {
+  id: number;
+  name: string;
+  slug: string;
+  logo: string | null;
+  org_type: string;
+}
+
 interface Invitation {
   id: number;
-  organization: string;
+  organization: OrganizationSimple; // <--- Changed from string to Object
   invited_by: {
     full_name: string;
     username: string;
@@ -34,7 +43,7 @@ interface Invitation {
 
 interface JoinRequest {
   id: number;
-  organization: string;
+  organization: OrganizationSimple; // <--- Changed from string to Object
   message: string;
   status: string;
   created_at: string;
@@ -44,18 +53,14 @@ export default function RequestsInvitationsList() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { fetchCurrentUser } = useAuth(); // To refresh user orgs after accepting
+  const { fetchCurrentUser } = useAuth();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch both in parallel
       const [invitesRes, requestsRes] = await Promise.all([
-        // ✅ CORRECT URL: Fetches *only* the user's invitations
-        api.get("/community/api/my-invitations/"),
-        
-        // ✅ CORRECT URL: Fetches *only* the user's sent join requests
-        api.get("/community/api/my-join-requests/"), 
+        api.get("/community/my-invitations/"),
+        api.get("/community/my-join-requests/"), 
       ]);
       
       setInvitations(invitesRes.data.results || invitesRes.data || []);
@@ -73,30 +78,22 @@ export default function RequestsInvitationsList() {
     fetchData();
   }, [fetchData]);
 
-  // --- Invitation Actions ---
   const handleInvitationAction = async (id: number, action: "accept" | "reject") => {
     try {
-      // ✅ CORRECT URL: This path is for the user to accept/reject their own invite
-      await api.post(`/community/api/my-invitations/${id}/${action}/`);
-      toast.success(
-        action === "accept" ? "Invitation Accepted!" : "Invitation Rejected."
-      );
-      if (action === "accept") {
-        await fetchCurrentUser(); // Refresh user state in AuthContext
-      }
-      fetchData(); // Refresh both lists
+      await api.post(`/community/my-invitations/${id}/${action}/`);
+      toast.success(action === "accept" ? "Invitation Accepted!" : "Invitation Rejected.");
+      if (action === "accept") await fetchCurrentUser();
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error || `Failed to ${action} invitation.`);
     }
   };
 
-  // --- Join Request Actions ---
   const handleCancelRequest = async (id: number) => {
     try {
-      // ✅ CORRECT URL: This path is for the user to cancel their own request
-      await api.post(`/community/api/my-join-requests/${id}/cancel/`);
+      await api.post(`/community/my-join-requests/${id}/cancel/`);
       toast.success("Join request cancelled.");
-      fetchData(); // Refresh both lists
+      fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Failed to cancel request.");
     }
@@ -145,8 +142,9 @@ export default function RequestsInvitationsList() {
                 <p className="text-sm text-gray-500">
                   From {inv.invited_by?.full_name || inv.invited_by?.username || "an admin"}
                 </p>
+                {/* 2. FIXED: Accessing .name property */}
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Join {inv.organization}
+                  Join {inv.organization.name}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   You've been invited as a{" "}
@@ -191,8 +189,9 @@ export default function RequestsInvitationsList() {
                 <p className="text-sm text-gray-500">
                   Sent on {new Date(req.created_at).toLocaleDateString()}
                 </p>
+                {/* 3. FIXED: Accessing .name property */}
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Request to join {req.organization}
+                  Request to join {req.organization.name}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Status: <Badge variant="secondary">{req.status}</Badge>
@@ -209,7 +208,8 @@ export default function RequestsInvitationsList() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Cancel Join Request?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you sure you want to cancel your request to join {req.organization}?
+                      {/* 4. FIXED: Accessing .name property */}
+                      Are you sure you want to cancel your request to join {req.organization.name}?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

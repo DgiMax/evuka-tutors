@@ -1,4 +1,4 @@
-// src/components/tutor/dashboard/AssessmentsManagerTab.tsx
+"use client";
 
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -13,7 +13,10 @@ import {
   FileText,
   Edit,
   Inbox,
+  FileIcon,
+  Download,
 } from "lucide-react";
+import Link from "next/link";
 
 import api from "@/lib/api/axios";
 import { cn } from "@/lib/utils";
@@ -24,7 +27,6 @@ import {
   GradeSubmissionValues,
 } from "./SharedTypes";
 
-// --- UI Components ---
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -68,7 +70,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Link from "next/link"; // Import Link for the empty state
 
 interface AssessmentsTabProps {
   courseSlug: string;
@@ -76,7 +77,6 @@ interface AssessmentsTabProps {
   quizzesSummary: QuizSummary[];
 }
 
-// --- Utility Components (Themed) ---
 const LoaderState: React.FC = () => (
   <div className="flex flex-col justify-center items-center h-[300px] bg-card rounded-lg border border-border">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -84,21 +84,21 @@ const LoaderState: React.FC = () => (
   </div>
 );
 
-// NEW: Reusable Empty State component (themed)
-const EmptyState: React.FC<{ message: string; linkPath?: string; linkText?: string; }> = ({ message, linkPath, linkText }) => (
+const EmptyState: React.FC<{ message: string; linkPath?: string; linkText?: string }> = ({
+  message,
+  linkPath,
+  linkText,
+}) => (
   <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
     <Inbox className="h-8 w-8 text-muted-foreground" />
     <p className="text-muted-foreground mt-2 text-center">{message}</p>
     {linkPath && linkText && (
       <Button asChild variant="link" className="text-primary">
-        <Link href={linkPath}>
-          {linkText}
-        </Link>
+        <Link href={linkPath}>{linkText}</Link>
       </Button>
     )}
   </div>
 );
-
 
 const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
   courseSlug,
@@ -106,16 +106,17 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
   quizzesSummary,
 }) => {
   const [activeTab, setActiveTab] = useState("assignments");
+  
   const assignmentsPending = assignmentsSummary.reduce(
     (sum, a) => sum + a.pending_review,
     0
   );
+  
   const quizzesReview = quizzesSummary.reduce(
     (sum, q) => sum + q.requires_review,
     0
   );
 
-  // For the responsive Select dropdown
   const tabItems = [
     {
       value: "assignments",
@@ -130,7 +131,6 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
   ];
 
   return (
-    // Card now uses theme colors
     <Card className="p-0">
       <CardHeader className="p-6">
         <CardTitle>Assessments Management</CardTitle>
@@ -141,7 +141,6 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
       <CardContent className="p-6 pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           
-          {/* NEW: Mobile Select (Dropdown) Navigation */}
           <div className="md:hidden">
             <Select value={activeTab} onValueChange={setActiveTab}>
               <SelectTrigger className="w-full h-12 px-4 py-3 text-base">
@@ -164,7 +163,6 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
             </Select>
           </div>
 
-          {/* UPDATED: Desktop Tabs Navigation (Hidden on mobile) */}
           <TabsList className="hidden md:grid w-full grid-cols-2">
             {tabItems.map((item) => (
               <TabsTrigger key={item.value} value={item.value}>
@@ -188,22 +186,17 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
 };
 export default AssessmentsManagerTab;
 
-// --- SUBMISSION LIST COMPONENTS ---
-
 const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
   courseSlug,
 }) => {
   const queryClient = useQueryClient();
-  const [filterStatus, setFilterStatus] = useState<"pending" | "graded" | "all">(
-    "pending"
-  );
+  const [filterStatus, setFilterStatus] = useState<"pending" | "graded" | "all">("pending");
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
 
   const { data: submissions, isLoading } = useQuery<any[]>({
     queryKey: ["allSubmissions", courseSlug, filterStatus],
     queryFn: async () => {
-      const statusParam =
-        filterStatus !== "all" ? `?status=${filterStatus}` : "";
+      const statusParam = filterStatus !== "all" ? `?status=${filterStatus}` : "";
       const baseUrl = `/manage-course/${courseSlug}/submissions-list`;
       const { data } = await api.get(`${baseUrl}${statusParam}`);
       return data;
@@ -224,7 +217,6 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
     setSelectedSubmission(null);
   };
 
-  // NEW: Mobile Card List Component
   const MobileSubmissionList = () => (
     <div className="space-y-4 md:hidden">
       {submissions?.map((submission) => (
@@ -242,10 +234,8 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
               className={cn(
                 "px-2 py-0.5 rounded-full text-xs font-medium capitalize flex-shrink-0",
                 {
-                  "bg-yellow-100 text-yellow-800":
-                    submission.submission_status === "pending",
-                  "bg-green-100 text-green-800":
-                    submission.submission_status === "graded",
+                  "bg-yellow-100 text-yellow-800": submission.submission_status === "pending",
+                  "bg-green-100 text-green-800": submission.submission_status === "graded",
                 }
               )}
             >
@@ -305,14 +295,10 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
       {isLoading ? (
         <LoaderState />
       ) : submissions?.length === 0 ? (
-        // UPDATED: Using new EmptyState component
         <EmptyState message={`No ${filterStatus} submissions found.`} />
       ) : (
         <>
-          {/* NEW: Mobile Card View (hidden on desktop) */}
           <MobileSubmissionList />
-          
-          {/* UPDATED: Desktop Table View (hidden on mobile) */}
           <div className="border rounded-lg overflow-hidden hidden md:block">
             <Table>
               <TableHeader>
@@ -336,10 +322,8 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
                         className={cn(
                           "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
                           {
-                            "bg-yellow-100 text-yellow-800":
-                              submission.submission_status === "pending",
-                            "bg-green-100 text-green-800":
-                              submission.submission_status === "graded",
+                            "bg-yellow-100 text-yellow-800": submission.submission_status === "pending",
+                            "bg-green-100 text-green-800": submission.submission_status === "graded",
                           }
                         )}
                       >
@@ -420,140 +404,164 @@ const GradeSubmissionDialog: React.FC<{
     gradeSubmission(data);
   };
 
+  const getFileName = (url: string) => {
+    try {
+        return url.split('/').pop() || "Attached File";
+    } catch (e) {
+        return "Attached File";
+    }
+  };
+
   return (
-    // DialogContent will use theme bg-card
-    <DialogContent className="sm:max-w-xl">
+    <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
       <DialogHeader>
-        <DialogTitle>Grade Submission by {submission.user.full_name}</DialogTitle>
+        <DialogTitle>Grade Submission</DialogTitle>
         <DialogDescription>
-          Assignment: {submission.assignment_title} (Max:{" "}
-          {submission.assignment.max_score})
+          Student: <span className="font-semibold text-foreground">{submission.user.full_name}</span>
+          <br />
+          Assignment: <span className="font-semibold text-foreground">{submission.assignment_title}</span>
         </DialogDescription>
       </DialogHeader>
-      <div className="space-y-4">
-        <p className="text-sm font-medium text-foreground">
-          Submission Details:
-          {submission.file ? (
-            // UPDATED: Uses theme primary color
-            <a
-              href={submission.file}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline ml-2"
-            >
-              Download Submitted File
-            </a>
-          ) : submission.text_submission ? (
-            <span className="ml-2 text-muted-foreground">Text Provided Below</span>
-          ) : (
-            <span className="text-muted-foreground ml-2">
-              No file/text submitted.
-            </span>
-          )}
-        </p>
-        {submission.text_submission && (
-          // UPDATED: Uses theme muted bg
-          <Card>
-            <CardContent className="p-4 bg-muted text-sm whitespace-pre-wrap">
-              {submission.text_submission}
-            </CardContent>
-          </Card>
-        )}
 
-        <Form {...gradeForm}>
-          <form
-            onSubmit={gradeForm.handleSubmit(handleGradeSubmit)}
-            // UPDATED: Uses theme border
-            className="space-y-4 pt-4 border-t"
-          >
-            {/* UPDATED: Responsive grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                control={gradeForm.control}
-                name="grade"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Grade Given</FormLabel>
-                    <FormControl>
-                      <ShadcnInput
-                        type="number"
-                        min={0}
-                        max={submission.assignment.max_score}
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === "" ? null : Number(e.target.value)
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Max: {submission.assignment.max_score}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={gradeForm.control}
-                name="submission_status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+      <div className="space-y-6 py-2">
+        <div className="space-y-3">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Student Work</h4>
+            
+            {submission.file ? (
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="h-10 w-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileIcon size={20} />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium truncate text-foreground">
+                                {getFileName(submission.file)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Click download to view</p>
+                        </div>
+                    </div>
+                    
+                    <Button variant="outline" size="sm" asChild className="ml-4 gap-2">
+                        <a href={submission.file} target="_blank" rel="noopener noreferrer">
+                            <Download size={14} /> 
+                            Download
+                        </a>
+                    </Button>
+                </div>
+            ) : null}
+
+            {submission.text_submission ? (
+                <div className="p-4 border rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-2">Text Submission:</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                        {submission.text_submission}
+                    </p>
+                </div>
+            ) : null}
+
+            {!submission.file && !submission.text_submission && (
+                <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground text-sm">
+                    No work attached (Student might have submitted empty).
+                </div>
+            )}
+        </div>
+
+        <div className="space-y-3">
+             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Instructor Feedback</h4>
+            
+            <Form {...gradeForm}>
+              <form
+                onSubmit={gradeForm.handleSubmit(handleGradeSubmit)}
+                className="space-y-4"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField
+                    control={gradeForm.control}
+                    name="grade"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Grade (Max: {submission.assignment.max_score})</FormLabel>
+                        <FormControl>
+                          <ShadcnInput
+                            type="number"
+                            min={0}
+                            max={submission.assignment.max_score}
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? null : Number(e.target.value)
+                              )
+                            }
+                            className="font-medium"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={gradeForm.control}
+                    name="submission_status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending Review</SelectItem>
+                            <SelectItem value="graded">Graded (Complete)</SelectItem>
+                            <SelectItem value="resubmit">Request Resubmission</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={gradeForm.control}
+                  name="feedback"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Written Feedback</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        <Textarea
+                          placeholder="Provide constructive feedback..."
+                          rows={4}
+                          {...field}
+                          className="resize-none"
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending Review</SelectItem>
-                        <SelectItem value="graded">Graded</SelectItem>
-                        <SelectItem value="resubmit">
-                          Request Resubmission
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={gradeForm.control}
-              name="feedback"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Feedback</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Provide constructive feedback..."
-                      rows={4}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* UPDATED: Button uses theme primary color */}
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Save Grade
-            </Button>
-          </form>
-        </Form>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end pt-2">
+                    <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
+                      {isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Check className="h-4 w-4 mr-2" />
+                      )}
+                      Save Grade & Feedback
+                    </Button>
+                </div>
+              </form>
+            </Form>
+        </div>
       </div>
     </DialogContent>
   );
 };
 
-// --- Quiz Review List (Responsive + Themed) ---
 const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
   courseSlug,
 }) => {
@@ -567,7 +575,6 @@ const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
     },
   });
 
-  // NEW: Mobile Card List Component
   const MobileQuizList = () => (
     <div className="space-y-4 md:hidden">
       {attempts?.map((attempt) => (
@@ -589,7 +596,6 @@ const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
              <p className="text-xs text-muted-foreground">
                 Lesson: {attempt.lesson_title}
               </p>
-            {/* UPDATED: Button uses theme secondary color (Teal) */}
             <Button size="sm" variant="secondary">
               <Edit size={14} className="mr-1" /> Review/Adjust
             </Button>
@@ -608,14 +614,10 @@ const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
       {isLoading ? (
         <LoaderState />
       ) : attempts?.length === 0 ? (
-        // UPDATED: Using new EmptyState component
         <EmptyState message="No quiz attempts require manual review." />
       ) : (
         <>
-          {/* NEW: Mobile Card View (hidden on desktop) */}
           <MobileQuizList />
-          
-          {/* UPDATED: Desktop Table View (hidden on mobile) */}
           <div className="border rounded-lg overflow-hidden hidden md:block">
             <Table>
               <TableHeader>
@@ -637,7 +639,6 @@ const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
                     <TableCell className="text-foreground">{attempt.score}/{attempt.max_score}</TableCell>
                     <TableCell className="text-muted-foreground">{new Date(attempt.completed_at).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      {/* UPDATED: Button uses theme secondary color (Teal) */}
                       <Button size="sm" variant="secondary">
                         <Edit size={14} className="mr-1" /> Review/Adjust
                       </Button>
