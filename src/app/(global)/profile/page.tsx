@@ -302,6 +302,7 @@ export default function TutorProfilePage() {
                   width={160}
                   height={160}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
                 {isEditing && (
                   <label

@@ -317,7 +317,7 @@ const PolicyBuilder = ({ value, onChange, placeholder }: { value: string, onChan
   const watchedCategories = form.watch("categories") || [];
 
   return (
-    <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0 shadow-lg border-muted/40">
+    <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0">
       <CardHeader className="p-6 bg-muted/5 border-b border-border">
         <div className="flex items-center justify-between">
             <div>
