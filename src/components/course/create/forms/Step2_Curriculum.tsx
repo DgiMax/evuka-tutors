@@ -240,6 +240,25 @@ const ModuleLessons = ({
                   )}
                 />
 
+                <FormField
+                  control={control}
+                  // The name path depends on your map index variable names (e.g., moduleIndex, lessonIndex)
+                  name={`modules.${moduleIndex}.lessons.${lessonIndex}.content`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Lesson Content (Text)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter lesson text, notes, or article content..." 
+                          className="min-h-[150px]"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormItem>
                   <FormLabel className="text-xs font-medium">
                     Video File (MP4/WebM)

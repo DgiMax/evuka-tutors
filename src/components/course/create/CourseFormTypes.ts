@@ -119,6 +119,7 @@ export const courseFormSchema = z.object({
             z.object({
               id: z.number().optional(), // Keep ID for edits
               title: z.string().min(3, "Lesson title is required.").max(100),
+              content: z.string().optional(),
               video_file: z.any().optional(),
               quizzes: z.array(QuizSchema).optional(),
             })

@@ -205,6 +205,7 @@ export default function CourseCreatePage({
                 mod.lessons?.map((les: any) => ({
                   id: les.id,
                   title: les.title,
+                  content: les.content || "",
                   video_file: getExistingFileUrl(les.video_file),
                   quizzes:
                     les.quizzes?.map((quiz: any) => ({
@@ -229,7 +230,7 @@ export default function CourseCreatePage({
                             })) || [],
                         })) || [],
                     })) || [],
-                })) || [{ title: "", video_file: null }],
+                })) || [{ title: "",content: "", video_file: null }],
             })) || [
               {
                 title: "",
@@ -319,6 +320,7 @@ export default function CourseCreatePage({
         const quizzesToSubmit = les.quizzes || [];
         const lessonData: any = {
           title: les.title,
+          content: les.content || "",
           quizzes: quizzesToSubmit,
         };
         const videoFileValue = les.video_file;
