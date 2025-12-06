@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Users, Loader2, Edit, Save, Inbox } from "lucide-react";
+import { Loader2, Edit, Save, Inbox, User, Mail, Calendar } from "lucide-react";
 
 import api from "@/lib/api/axios";
 import { cn } from "@/lib/utils";
@@ -54,27 +54,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Link from "next/link"; // Import Link
+import { Badge } from "@/components/ui/badge";
 
 interface EnrollmentTabProps {
   courseSlug: string;
   enrollments: EnrollmentManager[];
 }
 
-// --- Utility Components (Themed) ---
-const LoaderState: React.FC = () => (
-  <div className="flex justify-center items-center h-[300px] bg-card rounded-lg border border-border">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    <p className="ml-2 text-muted-foreground">Loading enrollments...</p>
-  </div>
-);
-
-// NEW: Reusable Empty State component (themed)
 const EmptyState: React.FC<{ message: string; }> = ({ message }) => (
   <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
     <Inbox className="h-8 w-8 text-muted-foreground" />
-    <p className="text-muted-foreground mt-2 text-center">{message}</p>
-    {/* You can add a link here if needed */}
+    <p className="text-muted-foreground mt-2 text-center text-sm">{message}</p>
   </div>
 );
 
@@ -83,8 +73,7 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
   enrollments,
 }) => {
   const queryClient = useQueryClient();
-  const [selectedEnrollment, setSelectedEnrollment] =
-    useState<EnrollmentManager | null>(null);
+  const [selectedEnrollment, setSelectedEnrollment] = useState<EnrollmentManager | null>(null);
 
   const { mutate: updateEnrollment, isPending } = useMutation({
     mutationFn: (data: UpdateEnrollmentValues & { id: number }) =>
@@ -120,62 +109,23 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
     { id: "ta", name: "Teaching Assistant" },
   ];
 
-  const statusMap: Record<EnrollmentManager["status"], string> =
-    statusOptions.reduce(
-      (acc, opt) => ({ ...acc, [opt.id]: opt.name }),
-      {} as Record<EnrollmentManager["status"], string>
-    );
-  const roleMap: Record<EnrollmentManager["role"], string> = roleOptions.reduce(
-    (acc, opt) => ({ ...acc, [opt.id]: opt.name }),
-    {} as Record<EnrollmentManager["role"], string>
-  );
+  const roleMap: Record<string, string> = {
+      student: "Student",
+      teacher: "Teacher",
+      ta: "Teaching Assistant"
+  };
 
-  // Reusable function to render the 'Edit' dialog trigger
-  const renderEditDialog = (enrollment: EnrollmentManager) => (
-    <Dialog
-      open={selectedEnrollment?.id === enrollment.id}
-      onOpenChange={(open) => !open && setSelectedEnrollment(null)}
-    >
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setSelectedEnrollment(enrollment)}
-        >
-          <Edit size={14} className="mr-1" /> Edit
-        </Button>
-      </DialogTrigger>
-      {selectedEnrollment && selectedEnrollment.id === enrollment.id && (
-        <UpdateEnrollmentDialog
-          enrollment={selectedEnrollment}
-          roleOptions={roleOptions}
-          statusOptions={statusOptions}
-          updateEnrollment={updateEnrollment}
-          isUpdating={isPending}
-        />
-      )}
-    </Dialog>
-  );
-
-  // Reusable function to render the status badge
-  const renderStatusBadge = (status: EnrollmentManager["status"]) => (
-    <span
-      className={cn(
-        "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
-        {
-          "bg-green-100 text-green-800": status === "active",
-          "bg-red-100 text-red-800":
-            status === "dropped" || status === "suspended",
-          "bg-blue-100 text-blue-800": status === "completed",
-        }
-      )}
-    >
-      {statusMap[status]}
-    </span>
+  const getStatusBadge = (status: string) => (
+    <Badge variant="outline" className={cn("capitalize border-0", {
+        "bg-green-100 text-green-800 hover:bg-green-200": status === "active",
+        "bg-red-100 text-red-800 hover:bg-red-200": status === "dropped" || status === "suspended",
+        "bg-blue-100 text-blue-800 hover:bg-blue-200": status === "completed",
+    })}>
+        {status}
+    </Badge>
   );
 
   return (
-    // UPDATED: Card uses theme colors and flush padding
     <Card className="p-0">
       <CardHeader className="p-6">
         <CardTitle>Enrolled Students ({enrollments.length})</CardTitle>
@@ -185,39 +135,54 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
       </CardHeader>
       <CardContent className="p-6 pt-0">
         {enrollments.length === 0 ? (
-          // UPDATED: Using new EmptyState component
           <EmptyState message="No students are enrolled in this course yet." />
         ) : (
           <>
-            {/* --- NEW: Mobile Card List (Visible on mobile) --- */}
+            {/* --- Mobile View (Cards) --- */}
             <div className="space-y-4 md:hidden">
               {enrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="p-4">
+                <Card key={enrollment.id} className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {enrollment.user_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {enrollment.user_email}
-                      </p>
+                    <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">{enrollment.user_name}</span>
                     </div>
-                    {renderStatusBadge(enrollment.status)}
+                    {getStatusBadge(enrollment.status)}
                   </div>
-                  <div className="flex justify-between items-end mt-4">
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Role: </span>
-                      <span className="font-medium text-foreground capitalize">
-                        {roleMap[enrollment.role]}
-                      </span>
+                  
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3" /> {enrollment.user_email}
                     </div>
-                    {renderEditDialog(enrollment)}
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-3 w-3" /> Joined: {new Date(enrollment.date_joined).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="text-sm font-medium">Role: {roleMap[enrollment.role]}</span>
+                    <Dialog open={selectedEnrollment?.id === enrollment.id} onOpenChange={(open) => !open && setSelectedEnrollment(null)}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" variant="outline" onClick={() => setSelectedEnrollment(enrollment)}>
+                                <Edit size={14} className="mr-1" /> Edit
+                            </Button>
+                        </DialogTrigger>
+                        {selectedEnrollment && selectedEnrollment.id === enrollment.id && (
+                            <UpdateEnrollmentDialog
+                                enrollment={selectedEnrollment}
+                                roleOptions={roleOptions}
+                                statusOptions={statusOptions}
+                                updateEnrollment={updateEnrollment}
+                                isUpdating={isPending}
+                            />
+                        )}
+                    </Dialog>
                   </div>
                 </Card>
               ))}
             </div>
 
-            {/* --- UPDATED: Desktop Table (Hidden on mobile) --- */}
+            {/* --- Desktop View (Table) --- */}
             <div className="border rounded-lg overflow-hidden hidden md:block">
               <Table>
                 <TableHeader>
@@ -233,23 +198,30 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
                 <TableBody>
                   {enrollments.map((enrollment) => (
                     <TableRow key={enrollment.id}>
-                      <TableCell className="font-medium text-foreground">
-                        {enrollment.user_name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {enrollment.user_email}
-                      </TableCell>
-                      <TableCell className="capitalize text-muted-foreground">
-                        {roleMap[enrollment.role]}
-                      </TableCell>
-                      <TableCell>
-                        {renderStatusBadge(enrollment.status)}
-                      </TableCell>
+                      <TableCell className="font-medium">{enrollment.user_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{enrollment.user_email}</TableCell>
+                      <TableCell className="capitalize text-muted-foreground">{roleMap[enrollment.role]}</TableCell>
+                      <TableCell>{getStatusBadge(enrollment.status)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {new Date(enrollment.date_joined).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        {renderEditDialog(enrollment)}
+                        <Dialog open={selectedEnrollment?.id === enrollment.id} onOpenChange={(open) => !open && setSelectedEnrollment(null)}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" variant="ghost" onClick={() => setSelectedEnrollment(enrollment)}>
+                                    <Edit size={14} className="mr-1" /> Edit
+                                </Button>
+                            </DialogTrigger>
+                            {selectedEnrollment && selectedEnrollment.id === enrollment.id && (
+                                <UpdateEnrollmentDialog
+                                    enrollment={selectedEnrollment}
+                                    roleOptions={roleOptions}
+                                    statusOptions={statusOptions}
+                                    updateEnrollment={updateEnrollment}
+                                    isUpdating={isPending}
+                                />
+                            )}
+                        </Dialog>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -264,7 +236,7 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
 };
 export default EnrollmentManagerTab;
 
-// --- SUB-COMPONENT: Update Enrollment Dialog (Themed) ---
+// --- SUB-COMPONENT: Update Enrollment Dialog (Styled) ---
 const UpdateEnrollmentDialog: React.FC<{
   enrollment: EnrollmentManager;
   roleOptions: any[];
@@ -285,75 +257,72 @@ const UpdateEnrollmentDialog: React.FC<{
   };
 
   return (
-    // DialogContent will use theme bg-card
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>Update Enrollment for {enrollment.user_name}</DialogTitle>
-      </DialogHeader>
-      <Form {...enrollmentForm}>
-        <form
-          onSubmit={enrollmentForm.handleSubmit(handleUpdate)}
-          className="space-y-4"
-        >
-          <FormField
-            control={enrollmentForm.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Role</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {roleOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={enrollmentForm.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {statusOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          {/* UPDATED: Button will use theme primary color (purple) */}
-          <Button type="submit" disabled={isUpdating} className="w-full">
-            {isUpdating ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}{" "}
+    <DialogContent className="sm:max-w-md p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+      
+      {/* Gray Header */}
+      <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
+        <DialogTitle>Update Enrollment</DialogTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+            Student: <span className="font-medium text-foreground">{enrollment.user_name}</span>
+        </p>
+      </div>
+
+      {/* Scrollable Body */}
+      <div className="flex-1 overflow-y-auto min-h-0 p-6">
+        <Form {...enrollmentForm}>
+            <form id="enrollment-form" onSubmit={enrollmentForm.handleSubmit(handleUpdate)} className="space-y-4">
+            <FormField
+                control={enrollmentForm.control}
+                name="role"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {roleOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            <FormField
+                control={enrollmentForm.control}
+                name="status"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                        {statusOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
+            </form>
+        </Form>
+      </div>
+
+      {/* Gray Footer */}
+      <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end shrink-0">
+        <Button type="submit" form="enrollment-form" disabled={isUpdating} className="w-full sm:w-auto">
+            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save Changes
-          </Button>
-        </form>
-      </Form>
+        </Button>
+      </div>
+
     </DialogContent>
   );
 };

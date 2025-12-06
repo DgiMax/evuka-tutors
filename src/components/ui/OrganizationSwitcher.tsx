@@ -118,10 +118,13 @@ export default function OrganizationSwitcher({
                     value={org.organization_slug}
                   >
                     <div className="flex items-center justify-between w-full gap-2">
-                        <span>{org.organization_name}</span>
-                        {/* Optional: Show badge to indicate role context */}
+                        <span>
+                          {org.organization_name.length > 14
+                            ? org.organization_name.slice(0, 14) + "..."
+                            : org.organization_name}
+                        </span>
                         <span className="text-xs text-muted-foreground uppercase border px-1 rounded">
-                            {org.role === 'student' ? 'Student' : 'Admin'}
+                            {org.role === 'student' ? 'STU' : 'TUT'}
                         </span>
                     </div>
                   </SelectItem>

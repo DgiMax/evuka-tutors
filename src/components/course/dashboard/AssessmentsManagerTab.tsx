@@ -15,6 +15,8 @@ import {
   Inbox,
   FileIcon,
   Download,
+  Calendar,
+  User
 } from "lucide-react";
 import Link from "next/link";
 
@@ -49,13 +51,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -70,6 +70,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface AssessmentsTabProps {
   courseSlug: string;
@@ -84,22 +85,14 @@ const LoaderState: React.FC = () => (
   </div>
 );
 
-const EmptyState: React.FC<{ message: string; linkPath?: string; linkText?: string }> = ({
-  message,
-  linkPath,
-  linkText,
-}) => (
+const EmptyState: React.FC<{ message: string }> = ({ message }) => (
   <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
     <Inbox className="h-8 w-8 text-muted-foreground" />
-    <p className="text-muted-foreground mt-2 text-center">{message}</p>
-    {linkPath && linkText && (
-      <Button asChild variant="link" className="text-primary">
-        <Link href={linkPath}>{linkText}</Link>
-      </Button>
-    )}
+    <p className="text-muted-foreground mt-2 text-center text-sm">{message}</p>
   </div>
 );
 
+// --- MAIN TAB COMPONENT ---
 const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
   courseSlug,
   assignmentsSummary,
@@ -107,52 +100,32 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState("assignments");
   
-  const assignmentsPending = assignmentsSummary.reduce(
-    (sum, a) => sum + a.pending_review,
-    0
-  );
-  
-  const quizzesReview = quizzesSummary.reduce(
-    (sum, q) => sum + q.requires_review,
-    0
-  );
+  const assignmentsPending = assignmentsSummary.reduce((sum, a) => sum + a.pending_review, 0);
+  const quizzesReview = quizzesSummary.reduce((sum, q) => sum + q.requires_review, 0);
 
   const tabItems = [
-    {
-      value: "assignments",
-      label: `Assignments (Pending: ${assignmentsPending})`,
-      icon: Send,
-    },
-    {
-      value: "quizzes",
-      label: `Quiz Review (Required: ${quizzesReview})`,
-      icon: BookOpen,
-    },
+    { value: "assignments", label: `Assignments (${assignmentsPending})`, icon: Send },
+    { value: "quizzes", label: `Quiz Review (${quizzesReview})`, icon: BookOpen },
   ];
 
   return (
     <Card className="p-0">
       <CardHeader className="p-6">
         <CardTitle>Assessments Management</CardTitle>
-        <CardDescription>
-          Review and grade student assignment submissions and quiz attempts.
-        </CardDescription>
+        <CardDescription>Review and grade student work.</CardDescription>
       </CardHeader>
       <CardContent className="p-6 pt-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           
+          {/* Mobile Tab Selector */}
           <div className="md:hidden">
             <Select value={activeTab} onValueChange={setActiveTab}>
-              <SelectTrigger className="w-full h-12 px-4 py-3 text-base">
-                <SelectValue placeholder="Select a section..." />
+              <SelectTrigger className="w-full h-12">
+                <SelectValue placeholder="Select section..." />
               </SelectTrigger>
-              <SelectContent className="w-[--radix-select-trigger-width]">
+              <SelectContent>
                 {tabItems.map((item) => (
-                  <SelectItem
-                    key={item.value}
-                    value={item.value}
-                    className="py-3 text-base"
-                  >
+                  <SelectItem key={item.value} value={item.value}>
                     <div className="flex items-center gap-2">
                       <item.icon className="h-4 w-4" />
                       <span>{item.label}</span>
@@ -163,20 +136,20 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
             </Select>
           </div>
 
+          {/* Desktop Tabs */}
           <TabsList className="hidden md:grid w-full grid-cols-2">
             {tabItems.map((item) => (
               <TabsTrigger key={item.value} value={item.value}>
-                <item.icon className="h-4 w-4 mr-2 flex-shrink-0" />
-                {item.label}
+                <item.icon className="h-4 w-4 mr-2" /> {item.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="assignments" className="mt-0 md:mt-6">
+          <TabsContent value="assignments" className="mt-4">
             <AssignmentSubmissionsList courseSlug={courseSlug} />
           </TabsContent>
 
-          <TabsContent value="quizzes" className="mt-0 md:mt-6">
+          <TabsContent value="quizzes" className="mt-4">
             <QuizAttemptsReviewList courseSlug={courseSlug} />
           </TabsContent>
         </Tabs>
@@ -186,9 +159,8 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
 };
 export default AssessmentsManagerTab;
 
-const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
-  courseSlug,
-}) => {
+// --- ASSIGNMENT LIST COMPONENT ---
+const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({ courseSlug }) => {
   const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<"pending" | "graded" | "all">("pending");
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
@@ -197,8 +169,7 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
     queryKey: ["allSubmissions", courseSlug, filterStatus],
     queryFn: async () => {
       const statusParam = filterStatus !== "all" ? `?status=${filterStatus}` : "";
-      const baseUrl = `/manage-course/${courseSlug}/submissions-list`;
-      const { data } = await api.get(`${baseUrl}${statusParam}`);
+      const { data } = await api.get(`/manage-course/${courseSlug}/submissions-list${statusParam}`);
       return data;
     },
   });
@@ -206,84 +177,28 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
   const handleGradeUpdate = (updatedSubmission: any) => {
     queryClient.setQueryData<any[]>(
       ["allSubmissions", courseSlug, filterStatus],
-      (old) =>
-        old
-          ? old.map((sub) =>
-              sub.id === updatedSubmission.id ? updatedSubmission : sub
-            )
-          : []
+      (old) => old ? old.map((sub) => sub.id === updatedSubmission.id ? updatedSubmission : sub) : []
     );
     queryClient.invalidateQueries({ queryKey: ["courseManagement", courseSlug] });
     setSelectedSubmission(null);
   };
 
-  const MobileSubmissionList = () => (
-    <div className="space-y-4 md:hidden">
-      {submissions?.map((submission) => (
-        <Card key={submission.id} className="p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="font-semibold text-foreground">
-                {submission.user.full_name}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {submission.assignment_title}
-              </p>
-            </div>
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-full text-xs font-medium capitalize flex-shrink-0",
-                {
-                  "bg-yellow-100 text-yellow-800": submission.submission_status === "pending",
-                  "bg-green-100 text-green-800": submission.submission_status === "graded",
-                }
-              )}
-            >
-              {submission.submission_status.replace("_", " ")}
-            </span>
-          </div>
-          <div className="flex justify-between items-end mt-4">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Grade: </span>
-              <span className="font-medium text-foreground">
-                {submission.grade !== null
-                  ? `${submission.grade}/${submission.assignment.max_score}`
-                  : "N/A"}
-              </span>
-            </div>
-            
-            <Dialog open={selectedSubmission?.id === submission.id} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
-              <DialogTrigger asChild>
-                <Button size="sm" onClick={() => setSelectedSubmission(submission)}>
-                  <FileText size={14} className="mr-1" /> Grade
-                </Button>
-              </DialogTrigger>
-              {selectedSubmission && selectedSubmission.id === submission.id && (
-                  <GradeSubmissionDialog 
-                    submission={selectedSubmission} 
-                    courseSlug={courseSlug} 
-                    onGradeUpdate={handleGradeUpdate} 
-                    onClose={() => setSelectedSubmission(null)}
-                  />
-              )}
-            </Dialog>
-          </div>
-        </Card>
-      ))}
-    </div>
+  const getStatusBadge = (status: string) => (
+    <Badge variant="outline" className={cn("capitalize border-0", {
+        "bg-yellow-100 text-yellow-800 hover:bg-yellow-200": status === "pending",
+        "bg-green-100 text-green-800 hover:bg-green-200": status === "graded",
+        "bg-red-100 text-red-800 hover:bg-red-200": status === "resubmit",
+    })}>
+        {status.replace("_", " ")}
+    </Badge>
   );
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <h4 className="font-semibold text-lg text-foreground">Submissions</h4>
-        <Select
-          value={filterStatus}
-          onValueChange={(v) => setFilterStatus(v as any)}
-        >
-          <SelectTrigger className="w-full md:w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+        <h4 className="font-semibold text-lg">Submissions</h4>
+        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+          <SelectTrigger className="w-full sm:w-[180px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="pending">Pending Review</SelectItem>
             <SelectItem value="graded">Graded</SelectItem>
@@ -292,20 +207,47 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
         </Select>
       </div>
 
-      {isLoading ? (
-        <LoaderState />
-      ) : submissions?.length === 0 ? (
-        <EmptyState message={`No ${filterStatus} submissions found.`} />
-      ) : (
+      {isLoading ? <LoaderState /> : submissions?.length === 0 ? <EmptyState message={`No ${filterStatus} submissions.`} /> : (
         <>
-          <MobileSubmissionList />
+          {/* Mobile Card View */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {submissions?.map((submission) => (
+              <Card key={submission.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{submission.user.full_name}</span>
+                  </div>
+                  {getStatusBadge(submission.submission_status)}
+                </div>
+                
+                <div className="text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">{submission.assignment_title}</p>
+                    <p className="text-xs mt-1 flex items-center gap-1">
+                        <Calendar className="h-3 w-3"/> Submitted: {new Date(submission.submitted_at).toLocaleDateString()}
+                    </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t">
+                    <span className="text-sm font-medium">
+                        Grade: {submission.grade !== null ? `${submission.grade}/${submission.assignment.max_score || 100}` : "N/A"}
+                    </span>
+                    <Button size="sm" onClick={() => setSelectedSubmission(submission)}>
+                        <FileText size={14} className="mr-1" /> Grade
+                    </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table View */}
           <div className="border rounded-lg overflow-hidden hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Student</TableHead>
                   <TableHead>Assignment</TableHead>
-                  <TableHead>Submitted At</TableHead>
+                  <TableHead>Submitted</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -314,43 +256,99 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
               <TableBody>
                 {submissions?.map((submission) => (
                   <TableRow key={submission.id}>
-                    <TableCell className="font-medium text-foreground">{submission.user.full_name}</TableCell>
+                    <TableCell className="font-medium">{submission.user.full_name}</TableCell>
                     <TableCell className="text-muted-foreground">{submission.assignment_title}</TableCell>
                     <TableCell className="text-muted-foreground">{new Date(submission.submitted_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{getStatusBadge(submission.submission_status)}</TableCell>
                     <TableCell>
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
-                          {
-                            "bg-yellow-100 text-yellow-800": submission.submission_status === "pending",
-                            "bg-green-100 text-green-800": submission.submission_status === "graded",
-                          }
-                        )}
-                      >
-                        {submission.submission_status.replace("_", " ")}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-foreground">
-                      {submission.grade !== null
-                        ? `${submission.grade}/${submission.assignment.max_score}`
-                        : "N/A"}
+                        {submission.grade !== null ? `${submission.grade}/${submission.assignment.max_score || 100}` : "N/A"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Dialog open={selectedSubmission?.id === submission.id} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
-                        <DialogTrigger asChild>
-                          <Button size="sm" onClick={() => setSelectedSubmission(submission)}>
-                            <FileText size={14} className="mr-1" /> Grade
-                          </Button>
-                        </DialogTrigger>
-                        {selectedSubmission && selectedSubmission.id === submission.id && (
-                            <GradeSubmissionDialog 
-                              submission={selectedSubmission} 
-                              courseSlug={courseSlug} 
-                              onGradeUpdate={handleGradeUpdate} 
-                              onClose={() => setSelectedSubmission(null)}
-                            />
-                        )}
-                      </Dialog>
+                      <Button size="sm" variant="ghost" onClick={() => setSelectedSubmission(submission)}>
+                        <Edit size={14} className="mr-1" /> Grade
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
+
+      {/* Shared Grade Dialog */}
+      <Dialog open={!!selectedSubmission} onOpenChange={(open) => !open && setSelectedSubmission(null)}>
+        {selectedSubmission && (
+            <GradeSubmissionDialog 
+                submission={selectedSubmission} 
+                courseSlug={courseSlug} 
+                onGradeUpdate={handleGradeUpdate} 
+                onClose={() => setSelectedSubmission(null)}
+            />
+        )}
+      </Dialog>
+    </div>
+  );
+};
+
+// --- QUIZ REVIEW LIST COMPONENT ---
+const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({ courseSlug }) => {
+  const { data: attempts, isLoading } = useQuery<any[]>({
+    queryKey: ["reviewAttempts", courseSlug],
+    queryFn: async () => {
+      const { data } = await api.get(`/manage-course/${courseSlug}/quizzes/review-attempts/`);
+      return data;
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <h4 className="font-semibold text-lg">Attempts Requiring Review</h4>
+      {isLoading ? <LoaderState /> : attempts?.length === 0 ? <EmptyState message="No attempts require manual review." /> : (
+        <>
+          {/* Mobile List */}
+          <div className="grid grid-cols-1 gap-4 md:hidden">
+            {attempts?.map((attempt) => (
+              <Card key={attempt.id} className="p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                    <div className="font-medium">{attempt.user.full_name}</div>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Needs Review</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    <p className="text-foreground">{attempt.quiz_title}</p>
+                    <p className="text-xs mt-1">Lesson: {attempt.lesson_title}</p>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t">
+                    <span className="text-sm">Score: {attempt.score}/{attempt.max_score}</span>
+                    <Button size="sm" variant="outline">Review</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="border rounded-lg overflow-hidden hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Quiz</TableHead>
+                  <TableHead>Lesson</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {attempts?.map((attempt) => (
+                  <TableRow key={attempt.id}>
+                    <TableCell className="font-medium">{attempt.user.full_name}</TableCell>
+                    <TableCell>{attempt.quiz_title}</TableCell>
+                    <TableCell className="text-muted-foreground">{attempt.lesson_title}</TableCell>
+                    <TableCell>{attempt.score}/{attempt.max_score}</TableCell>
+                    <TableCell>{new Date(attempt.completed_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="secondary">Review</Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -363,6 +361,7 @@ const AssignmentSubmissionsList: React.FC<{ courseSlug: string }> = ({
   );
 };
 
+// --- GRADE DIALOG COMPONENT (STYLED) ---
 const GradeSubmissionDialog: React.FC<{
   submission: any;
   courseSlug: string;
@@ -380,276 +379,140 @@ const GradeSubmissionDialog: React.FC<{
 
   const { mutate: gradeSubmission, isPending } = useMutation({
     mutationFn: (data: GradeSubmissionValues) =>
-      api.patch(
-        `/manage-course/${courseSlug}/assignments/grade/${submission.id}/`,
-        data
-      ),
+      api.patch(`/manage-course/${courseSlug}/assignments/grade/${submission.id}/`, data),
     onSuccess: (response) => {
-      toast.success(
-        `Submission graded: ${response.data.grade}/${response.data.assignment.max_score}`
-      );
+      toast.success(`Graded: ${response.data.grade}/${response.data.assignment.max_score}`);
       onGradeUpdate(response.data);
+      onClose();
     },
     onError: () => toast.error("Failed to update grade."),
   });
 
   const handleGradeSubmit: SubmitHandler<GradeSubmissionValues> = (data) => {
     if (data.submission_status === "graded" && data.grade === null) {
-      gradeForm.setError("grade", {
-        type: "manual",
-        message: 'Grade is required when status is "Graded".',
-      });
+      gradeForm.setError("grade", { type: "manual", message: 'Grade required if status is "Graded".' });
       return;
     }
     gradeSubmission(data);
   };
 
   const getFileName = (url: string) => {
-    try {
-        return url.split('/').pop() || "Attached File";
-    } catch (e) {
-        return "Attached File";
-    }
+    try { return url.split('/').pop() || "Attached File"; } 
+    catch { return "Attached File"; }
   };
 
   return (
-    <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
-      <DialogHeader>
+    <DialogContent className="sm:max-w-xl p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+      
+      {/* Gray Header */}
+      <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
         <DialogTitle>Grade Submission</DialogTitle>
-        <DialogDescription>
-          Student: <span className="font-semibold text-foreground">{submission.user.full_name}</span>
-          <br />
-          Assignment: <span className="font-semibold text-foreground">{submission.assignment_title}</span>
-        </DialogDescription>
-      </DialogHeader>
+        <div className="flex justify-between items-center mt-1 text-sm text-muted-foreground">
+            <span>Student: <span className="font-medium text-foreground">{submission.user.full_name}</span></span>
+            <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                Max Score: {submission.assignment.max_score || 100}
+            </span>
+        </div>
+      </div>
 
-      <div className="space-y-6 py-2">
+      {/* Scrollable Body */}
+      <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
+        
+        {/* Student Work Section */}
         <div className="space-y-3">
-            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Student Work</h4>
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Student Work</h4>
             
             {submission.file ? (
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group">
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/20 transition-colors">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <div className="h-10 w-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                             <FileIcon size={20} />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-sm font-medium truncate text-foreground">
-                                {getFileName(submission.file)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Click download to view</p>
+                            <p className="text-sm font-medium truncate">{getFileName(submission.file)}</p>
+                            <p className="text-xs text-muted-foreground">Attached Document</p>
                         </div>
                     </div>
-                    
-                    <Button variant="outline" size="sm" asChild className="ml-4 gap-2">
+                    <Button variant="outline" size="sm" asChild className="ml-2 gap-2 h-8">
                         <a href={submission.file} target="_blank" rel="noopener noreferrer">
-                            <Download size={14} /> 
-                            Download
+                            <Download size={14} /> Download
                         </a>
                     </Button>
                 </div>
             ) : null}
 
             {submission.text_submission ? (
-                <div className="p-4 border rounded-lg bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-2">Text Submission:</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                        {submission.text_submission}
-                    </p>
+                <div className="p-4 border rounded-lg bg-muted/10 text-sm leading-relaxed whitespace-pre-wrap">
+                    {submission.text_submission}
                 </div>
             ) : null}
 
             {!submission.file && !submission.text_submission && (
-                <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground text-sm">
-                    No work attached (Student might have submitted empty).
+                <div className="p-6 border border-dashed rounded-lg text-center text-muted-foreground text-sm bg-muted/5">
+                    No work attached (Empty submission).
                 </div>
             )}
         </div>
 
-        <div className="space-y-3">
-             <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Instructor Feedback</h4>
-            
+        {/* Grading Form */}
+        <div className="space-y-3 pt-4 border-t">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Instructor Assessment</h4>
             <Form {...gradeForm}>
-              <form
-                onSubmit={gradeForm.handleSubmit(handleGradeSubmit)}
-                className="space-y-4"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormField
-                    control={gradeForm.control}
-                    name="grade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Grade (Max: {submission.assignment.max_score})</FormLabel>
-                        <FormControl>
-                          <ShadcnInput
-                            type="number"
-                            min={0}
-                            max={submission.assignment.max_score}
-                            {...field}
-                            value={field.value ?? ""}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value === "" ? null : Number(e.target.value)
-                              )
-                            }
-                            className="font-medium"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={gradeForm.control}
-                    name="submission_status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending Review</SelectItem>
-                            <SelectItem value="graded">Graded (Complete)</SelectItem>
-                            <SelectItem value="resubmit">Request Resubmission</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={gradeForm.control}
-                  name="feedback"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Written Feedback</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Provide constructive feedback..."
-                          rows={4}
-                          {...field}
-                          className="resize-none"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end pt-2">
-                    <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
-                      {isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Check className="h-4 w-4 mr-2" />
-                      )}
-                      Save Grade & Feedback
-                    </Button>
-                </div>
-              </form>
+                <form id="grade-form" onSubmit={gradeForm.handleSubmit(handleGradeSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FormField control={gradeForm.control} name="grade" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Grade</FormLabel>
+                                <FormControl>
+                                    <ShadcnInput 
+                                        type="number" 
+                                        min={0} 
+                                        max={submission.assignment.max_score} 
+                                        {...field} 
+                                        value={field.value ?? ""} 
+                                        onChange={e => field.onChange(e.target.value === "" ? null : Number(e.target.value))} 
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={gradeForm.control} name="submission_status" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Status</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="pending">Pending Review</SelectItem>
+                                        <SelectItem value="graded">Graded (Complete)</SelectItem>
+                                        <SelectItem value="resubmit">Request Resubmission</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <FormField control={gradeForm.control} name="feedback" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Feedback</FormLabel>
+                            <FormControl>
+                                <Textarea placeholder="Provide constructive feedback..." rows={4} {...field} value={field.value ?? ""} className="resize-none" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                </form>
             </Form>
         </div>
       </div>
+
+      {/* Gray Footer */}
+      <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end shrink-0">
+        <Button type="submit" form="grade-form" disabled={isPending} className="w-full sm:w-auto">
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+            Save Grade & Feedback
+        </Button>
+      </div>
+
     </DialogContent>
-  );
-};
-
-const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({
-  courseSlug,
-}) => {
-  const { data: attempts, isLoading } = useQuery<any[]>({
-    queryKey: ["reviewAttempts", courseSlug],
-    queryFn: async () => {
-      const { data } = await api.get(
-        `/manage-course/${courseSlug}/quizzes/review-attempts/`
-      );
-      return data;
-    },
-  });
-
-  const MobileQuizList = () => (
-    <div className="space-y-4 md:hidden">
-      {attempts?.map((attempt) => (
-        <Card key={attempt.id} className="p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="font-semibold text-foreground">
-                {attempt.user.full_name}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {attempt.quiz_title}
-              </p>
-            </div>
-             <p className="text-sm font-medium text-foreground">
-                {attempt.score}/{attempt.max_score}
-              </p>
-          </div>
-          <div className="flex justify-between items-end mt-4">
-             <p className="text-xs text-muted-foreground">
-                Lesson: {attempt.lesson_title}
-              </p>
-            <Button size="sm" variant="secondary">
-              <Edit size={14} className="mr-1" /> Review/Adjust
-            </Button>
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="space-y-4">
-      <h4 className="font-semibold text-lg text-foreground">
-        Attempts Requiring Manual Review
-      </h4>
-
-      {isLoading ? (
-        <LoaderState />
-      ) : attempts?.length === 0 ? (
-        <EmptyState message="No quiz attempts require manual review." />
-      ) : (
-        <>
-          <MobileQuizList />
-          <div className="border rounded-lg overflow-hidden hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Quiz</TableHead>
-                  <TableHead>Lesson</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Submitted At</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {attempts?.map((attempt) => (
-                  <TableRow key={attempt.id}>
-                    <TableCell className="font-medium text-foreground">{attempt.user.full_name}</TableCell>
-                    <TableCell className="text-muted-foreground">{attempt.quiz_title}</TableCell>
-                    <TableCell className="text-muted-foreground">{attempt.lesson_title}</TableCell>
-                    <TableCell className="text-foreground">{attempt.score}/{attempt.max_score}</TableCell>
-                    <TableCell className="text-muted-foreground">{new Date(attempt.completed_at).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="secondary">
-                        <Edit size={14} className="mr-1" /> Review/Adjust
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      )}
-    </div>
   );
 };

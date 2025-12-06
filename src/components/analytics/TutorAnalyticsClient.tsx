@@ -3,12 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import api from "@/lib/api/axios";
-import { Loader2, BarChart3, TrendingUp, Users, Inbox } from "lucide-react"; // Added Inbox
-import { Button } from "@/components/ui/button";
+import { Loader2, TrendingUp, Users, Inbox, DollarSign, Star } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -22,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-// Types matching the (simplified) analytics view
 interface TopCourseDetailed {
   title: string;
   total_students: number;
@@ -31,7 +28,6 @@ interface TopCourseDetailed {
   rating_avg: number;
 }
 
-// --- NEW: Themed Utility Components ---
 const LoaderState: React.FC = () => (
   <div className="flex flex-col h-[50vh] items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -48,8 +44,7 @@ const EmptyState: React.FC<{ message: string }> = ({ message }) => (
 
 export default function TutorAnalyticsClient() {
   const { activeSlug } = useActiveOrg();
-  const [data, setData] =
-    useState<{ top_courses_detailed: TopCourseDetailed[] } | null>(null);
+  const [data, setData] = useState<{ top_courses_detailed: TopCourseDetailed[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -77,60 +72,55 @@ export default function TutorAnalyticsClient() {
 
   const getRatingClass = (rating: number) => {
     return rating >= 4.5
-      ? "bg-green-100 text-green-800"
+      ? "bg-green-100 text-green-800 border-green-200"
       : rating >= 3.5
-      ? "bg-yellow-100 text-yellow-800"
-      : "bg-red-100 text-red-800";
+      ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+      : "bg-red-100 text-red-800 border-red-200";
   };
 
   if (isLoading) return <LoaderState />;
   if (!data) return <EmptyState message="No analytics data found." />;
 
-  // Reusable component for the rating badge
   const RatingBadge: React.FC<{ rating: number }> = ({ rating }) => (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium",
-        getRatingClass(rating)
-      )}
-    >
-      ★ {rating.toFixed(1)}
+    <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium border", getRatingClass(rating))}>
+      <Star size={10} className="fill-current" /> {rating.toFixed(1)}
     </span>
   );
 
-  // --- NEW: Mobile Card List Component ---
   const MobileAnalyticsList = () => (
-    <div className="space-y-4 md:hidden">
+    <div className="grid grid-cols-1 gap-4 md:hidden">
       {data.top_courses_detailed.map((course, idx) => (
         <Card key={idx} className="p-4">
-          <div className="flex justify-between items-start">
-            <p className="font-semibold text-foreground pr-4">{course.title}</p>
+          <div className="flex justify-between items-start gap-4">
+            <h3 className="font-semibold text-foreground leading-tight">{course.title}</h3>
             <RatingBadge rating={course.rating_avg} />
           </div>
 
-          <div className="flex justify-between items-end mt-4">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Enrolled: {course.total_students}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Active: {course.active_students}
-              </p>
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+            <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Students</p>
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                    <Users size={14} className="text-primary" />
+                    <span className="font-medium">{course.total_students}</span>
+                    <span className="text-muted-foreground text-xs">({course.active_students} active)</span>
+                </div>
             </div>
-            <p className="text-lg font-semibold text-foreground">
-              {formatCurrency(course.total_revenue)}
-            </p>
+            <div className="space-y-1 text-right">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Revenue</p>
+                <div className="flex items-center justify-end gap-1 text-sm font-bold text-green-700">
+                    {formatCurrency(course.total_revenue)}
+                </div>
+            </div>
           </div>
         </Card>
       ))}
     </div>
   );
 
-  // --- UPDATED: Desktop Table (now hidden on mobile) ---
+  // --- DESKTOP TABLE (Unchanged logic, just layout) ---
   const DesktopAnalyticsTable = () => (
     <div className="border rounded-lg overflow-hidden hidden md:block">
       <Table>
-        {/* UPDATED: Themed header */}
         <TableHeader>
           <TableRow>
             <TableHead>Course Title</TableHead>
@@ -140,29 +130,19 @@ export default function TutorAnalyticsClient() {
             <TableHead className="text-right">Total Revenue</TableHead>
           </TableRow>
         </TableHeader>
-        {/* UPDATED: Themed body */}
         <TableBody>
           {data.top_courses_detailed.map((course, idx) => (
             <TableRow key={idx} className="hover:bg-muted/50 transition-colors">
-              <TableCell className="font-medium text-foreground">
-                {course.title}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {course.total_students}
-              </TableCell>
+              <TableCell className="font-medium text-foreground">{course.title}</TableCell>
+              <TableCell className="text-muted-foreground">{course.total_students}</TableCell>
               <TableCell className="text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  {/* UPDATED: Themed icon */}
                   <Users className="h-4 w-4 text-primary" />
                   {course.active_students}
                 </div>
               </TableCell>
-              <TableCell>
-                <RatingBadge rating={course.rating_avg} />
-              </TableCell>
-              <TableCell className="text-right font-medium text-foreground">
-                {formatCurrency(course.total_revenue)}
-              </TableCell>
+              <TableCell><RatingBadge rating={course.rating_avg} /></TableCell>
+              <TableCell className="text-right font-medium text-foreground">{formatCurrency(course.total_revenue)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -171,24 +151,20 @@ export default function TutorAnalyticsClient() {
   );
 
   return (
-    // UPDATED: Standardized padding
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      {/* UPDATED: Themed title */}
       <h1 className="text-2xl font-bold text-foreground mb-8 flex items-center gap-3">
         Performance Analytics
       </h1>
 
-      {/* UPDATED: Main content wrapped in themed card */}
       <Card className="p-0">
-        <CardHeader className="p-6">
+        <CardHeader className="p-6 border-b bg-muted/10">
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-green-600" />
             Course Performance Deep Dive
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6 pt-0">
-          {!data.top_courses_detailed ||
-          data.top_courses_detailed.length === 0 ? (
+        <CardContent className="p-6">
+          {!data.top_courses_detailed || data.top_courses_detailed.length === 0 ? (
             <EmptyState message="No performance data available yet." />
           ) : (
             <>

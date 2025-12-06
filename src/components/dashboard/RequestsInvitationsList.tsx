@@ -20,8 +20,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// --- 1. FIXED INTERFACES ---
-// We match the "OrganizationSimpleSerializer" structure here
 interface OrganizationSimple {
   id: number;
   name: string;
@@ -32,7 +30,7 @@ interface OrganizationSimple {
 
 interface Invitation {
   id: number;
-  organization: OrganizationSimple; // <--- Changed from string to Object
+  organization: OrganizationSimple;
   invited_by: {
     full_name: string;
     username: string;
@@ -43,7 +41,7 @@ interface Invitation {
 
 interface JoinRequest {
   id: number;
-  organization: OrganizationSimple; // <--- Changed from string to Object
+  organization: OrganizationSimple;
   message: string;
   status: string;
   created_at: string;
@@ -60,7 +58,7 @@ export default function RequestsInvitationsList() {
     try {
       const [invitesRes, requestsRes] = await Promise.all([
         api.get("/community/my-invitations/"),
-        api.get("/community/my-join-requests/"), 
+        api.get("/community/my-join-requests/"),
       ]);
       
       setInvitations(invitesRes.data.results || invitesRes.data || []);
@@ -118,20 +116,25 @@ export default function RequestsInvitationsList() {
   }
 
   return (
-    <Tabs defaultValue="invitations">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="invitations">
-          <Mail className="h-4 w-4 mr-2" />
-          Invitations ({invitations.length})
+    <Tabs defaultValue="invitations" className="w-full">
+      <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted rounded-lg">
+        <TabsTrigger 
+          value="invitations" 
+          className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all"
+        >
+          <Mail className="h-4 w-4 shrink-0" />
+          <span className="truncate">Invitations ({invitations.length})</span>
         </TabsTrigger>
-        <TabsTrigger value="requests">
-          <Send className="h-4 w-4 mr-2" />
-          Sent Requests ({requests.length})
+        <TabsTrigger 
+          value="requests" 
+          className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all"
+        >
+          <Send className="h-4 w-4 shrink-0" />
+          <span className="truncate">Sent Requests ({requests.length})</span>
         </TabsTrigger>
       </TabsList>
 
-      {/* --- INVITATIONS TAB --- */}
-      <TabsContent value="invitations" className="mt-4">
+      <TabsContent value="invitations" className="mt-6">
         <div className="space-y-4">
           {invitations.length > 0 ? invitations.map((inv) => (
             <div
@@ -142,7 +145,6 @@ export default function RequestsInvitationsList() {
                 <p className="text-sm text-gray-500">
                   From {inv.invited_by?.full_name || inv.invited_by?.username || "an admin"}
                 </p>
-                {/* 2. FIXED: Accessing .name property */}
                 <h3 className="text-lg font-semibold text-gray-900">
                   Join {inv.organization.name}
                 </h3>
@@ -177,8 +179,7 @@ export default function RequestsInvitationsList() {
         </div>
       </TabsContent>
 
-      {/* --- JOIN REQUESTS TAB --- */}
-      <TabsContent value="requests" className="mt-4">
+      <TabsContent value="requests" className="mt-6">
         <div className="space-y-4">
           {requests.length > 0 ? requests.map((req) => (
             <div
@@ -189,7 +190,6 @@ export default function RequestsInvitationsList() {
                 <p className="text-sm text-gray-500">
                   Sent on {new Date(req.created_at).toLocaleDateString()}
                 </p>
-                {/* 3. FIXED: Accessing .name property */}
                 <h3 className="text-lg font-semibold text-gray-900">
                   Request to join {req.organization.name}
                 </h3>
@@ -208,7 +208,6 @@ export default function RequestsInvitationsList() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Cancel Join Request?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      {/* 4. FIXED: Accessing .name property */}
                       Are you sure you want to cancel your request to join {req.organization.name}?
                     </AlertDialogDescription>
                   </AlertDialogHeader>

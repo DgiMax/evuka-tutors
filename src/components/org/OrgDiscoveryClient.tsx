@@ -180,9 +180,9 @@ function OrgCard({
   const fallback = org.name.charAt(0);
 
   return (
-    <Card className="rounded-md overflow-hidden flex flex-col transition-all hover:shadow p-0">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4 mb-4">
+    <Card className="rounded-md overflow-hidden flex flex-col transition-all hover:shadow-md p-0 h-full">
+      <CardContent className="p-6 flex flex-col h-full">
+        <div className="flex items-start gap-4 mb-4">
           <div className="h-16 w-16 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border">
             {logoUrl ? (
               <Image
@@ -193,20 +193,20 @@ function OrgCard({
                 className="h-full w-full object-cover"
               />
             ) : (
-              <span className="text-2xl font-bold text-muted-foreground">
+              <span className="text-2xl font-bold text-muted-foreground uppercase">
                 {fallback}
               </span>
             )}
           </div>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
+          <div className="flex flex-col min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground truncate leading-tight">
               {org.name}
             </h2>
-            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-              <span className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-1">
+              <span className="flex items-center gap-1 shrink-0">
                 <Users className="h-4 w-4" /> {org.stats.tutors} Tutors
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 shrink-0">
                 <Users className="h-4 w-4" /> {org.stats.students} Students
               </span>
             </div>

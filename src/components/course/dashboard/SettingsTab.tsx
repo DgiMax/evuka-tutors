@@ -1,5 +1,3 @@
-// src/components/tutor/dashboard/SettingsTab.tsx
-
 import React, { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +15,6 @@ import {
   SettingsFormInitialValues,
 } from "./SharedTypes";
 
-// --- UI Components ---
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,6 +34,7 @@ import {
 } from "@/components/ui/form";
 import { Input as ShadcnInput } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -51,7 +49,6 @@ interface SettingsTabProps {
   formOptions: FormOptionsData | null;
 }
 
-// UPDATED: Utility component for loading state (Themed)
 const LoaderState: React.FC = () => (
   <div className="flex justify-center items-center h-[300px] bg-card rounded-lg border border-border">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -59,7 +56,6 @@ const LoaderState: React.FC = () => (
   </div>
 );
 
-// Helper to determine if a field value is an existing URL/path
 const getExistingFileUrl = (fieldValue: string | null): string | null => {
   if (
     typeof fieldValue === "string" &&
@@ -78,7 +74,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
 
-  // Helper to safely convert number/null FK to string for Selects, defaulting to "".
   const toSelectValue = (id: number | string | null | undefined) => {
     if (id === null || id === undefined) return "";
     return id.toString();
@@ -98,13 +93,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       org_level: "",
       price: undefined,
       status: "draft",
+      is_public: false,
       thumbnail: null,
       promo_video: null,
     },
     mode: "onBlur",
   });
 
-  // --- Logic (Unchanged) ---
   useEffect(() => {
     if (!initialData || !formOptions) return;
 
@@ -129,9 +124,10 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       org_level: toSelectValue(initialData.org_level),
       price:
         initialData.price !== null && initialData.price !== undefined
-          ? initialData.price
+          ? parseFloat(String(initialData.price))
           : undefined,
       status: initialData.status || "draft",
+      is_public: initialData.is_public ?? false,
       thumbnail: getExistingFileUrl(initialData.thumbnail),
       promo_video: initialData.promo_video || null,
     });
@@ -164,27 +160,34 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
 
     Object.keys(data).forEach((key) => {
       const value = data[key as keyof typeof data];
+
       if (
         key !== "thumbnail" &&
         key !== "promo_video" &&
-        key !== "learning_objectives"
+        key !== "learning_objectives" &&
+        key !== "price" &&
+        key !== "is_public"
       ) {
-        if (typeof value === "string" && value === "") {
-          formData.append(key, "");
-        } else if (key === "price") {
-          formData.append(
-            key,
-            value !== undefined && value !== null ? value.toString() : ""
-          );
-        } else if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null) {
           formData.append(key, value.toString());
+        } else {
+          formData.append(key, "");
         }
       }
     });
 
+    if (data.price !== undefined && data.price !== null) {
+      formData.append("price", data.price.toString());
+    } else {
+      formData.append("price", "");
+    }
+
+    formData.append("is_public", data.is_public ? "true" : "false");
+
     if (data.thumbnail instanceof File) {
       formData.append("thumbnail", data.thumbnail);
     }
+
     if (data.promo_video) {
       formData.append("promo_video", data.promo_video);
     } else {
@@ -199,9 +202,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
     formData.delete("modules");
 
     try {
-      const response = await api.put(`/tutor-courses/${courseSlug}/`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await api.put(
+        `/tutor-courses/${courseSlug}/`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       toast.success(
         `Settings updated successfully! Status: ${
           statusOptions[response.data.status as CourseStatus]
@@ -212,16 +219,23 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       });
     } catch (error: any) {
       console.error("Settings update failed:", error);
-      const errorDetail =
-        error.response?.data?.detail ||
-        error.response?.data?.title?.[0] ||
-        "Unknown error. Check console.";
-      toast.error(`Failed to update settings: ${errorDetail}`);
+
+      let errorMsg = "Unknown error";
+      if (error.response?.data) {
+        if (typeof error.response.data === "object") {
+          errorMsg = Object.entries(error.response.data)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v[0] : v}`)
+            .join(", ");
+        } else {
+          errorMsg = error.response.data.title || "Update failed";
+        }
+      }
+
+      toast.error(`Failed to update settings: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
   };
-  // --- End of Logic ---
 
   if (!formOptions || !initialData) return <LoaderState />;
 
@@ -240,7 +254,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
             onSubmit={form.handleSubmit(handleUpdateSettings)}
             className="space-y-6"
           >
-            {/* Title, Descriptions */}
             <FormField
               control={form.control}
               name="title"
@@ -285,7 +298,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               )}
             />
 
-            {/* Objectives */}
             <div>
               <FormLabel>Learning Objectives</FormLabel>
               <div className="space-y-2 mt-2">
@@ -332,7 +344,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               </Button>
             </div>
 
-            {/* Taxonomy Fields */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border border-border p-4 rounded-lg bg-muted/50">
               <FormField
                 control={form.control}
@@ -350,7 +361,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       key={field.value || "initial-category"}
                       value={field.value || ""}
                     >
-                      {/* ✅ FIX: Added truncate class */}
                       <SelectTrigger className="truncate">
                         <SelectValue placeholder="Select Category..." />
                       </SelectTrigger>
@@ -381,7 +391,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                         filteredSubCategories.length === 0
                       }
                     >
-                      {/* ✅ FIX: Added truncate class */}
                       <SelectTrigger className="truncate">
                         <SelectValue placeholder="Select Subcategory..." />
                       </SelectTrigger>
@@ -408,7 +417,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       key={field.value || "initial-level"}
                       value={field.value || ""}
                     >
-                      {/* ✅ FIX: Added truncate class */}
                       <SelectTrigger className="truncate">
                         <SelectValue placeholder="Select Difficulty..." />
                       </SelectTrigger>
@@ -426,67 +434,91 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            {/* Organization Fields (Conditional) */}
             {isOrgCourse && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border border-secondary/20 p-4 rounded-lg bg-secondary/10">
-                <FormField
-                  control={form.control}
-                  name="org_category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Organization Category</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        key={field.value || "initial-org-cat"}
-                        value={field.value || ""}
-                      >
-                        {/* ✅ FIX: Added truncate class */}
-                        <SelectTrigger className="truncate">
-                          <SelectValue placeholder="Select Org Category..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formOptions.orgCategories.map((c) => (
-                            <SelectItem key={c.id} value={c.id.toString()}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="org_level"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Organization Level</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        key={field.value || "initial-org-level"}
-                        value={field.value || ""}
-                      >
-                        {/* ✅ FIX: Added truncate class */}
-                        <SelectTrigger className="truncate">
-                          <SelectValue placeholder="Select Org Level..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formOptions.orgLevels.map((l) => (
-                            <SelectItem key={l.id} value={l.id.toString()}>
-                              {l.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <div className="flex flex-col gap-4 border border-secondary/20 p-4 rounded-lg bg-secondary/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="org_category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Organization Category</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          key={field.value || "initial-org-cat"}
+                          value={field.value || ""}
+                        >
+                          <SelectTrigger className="truncate">
+                            <SelectValue placeholder="Select Org Category..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formOptions.orgCategories.map((c) => (
+                              <SelectItem key={c.id} value={c.id.toString()}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="org_level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Organization Level</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          key={field.value || "initial-org-level"}
+                          value={field.value || ""}
+                        >
+                          <SelectTrigger className="truncate">
+                            <SelectValue placeholder="Select Org Level..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {formOptions.orgLevels.map((l) => (
+                              <SelectItem key={l.id} value={l.id.toString()}>
+                                {l.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="border-t border-secondary/20 pt-4 mt-2">
+                  <FormField
+                    control={form.control}
+                    name="is_public"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border bg-card p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Marketplace Visibility
+                          </FormLabel>
+                          <FormDescription>
+                            Publish this course to the global marketplace? If
+                            disabled, only organization members can see it.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             )}
 
-            {/* Pricing & Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -500,19 +532,16 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       </span>
                       <ShadcnInput
                         type="number"
-                        step="1"
+                        step="0.01"
                         min="0"
                         placeholder="0 (Free)"
                         className="pl-12"
                         {...field}
                         value={field.value ?? ""}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value === ""
-                              ? undefined
-                              : Number(e.target.value)
-                          )
-                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          field.onChange(val === "" ? undefined : parseFloat(val));
+                        }}
                       />
                     </div>
                     <FormMessage />
@@ -530,7 +559,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       key={field.value || "initial-status"}
                       value={field.value || ""}
                     >
-                      {/* ✅ FIX: Added truncate class */}
                       <SelectTrigger className="truncate">
                         <SelectValue placeholder="Select Status..." />
                       </SelectTrigger>
@@ -548,7 +576,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            {/* File Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 control={form.control}
@@ -608,7 +635,6 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            {/* Action Button */}
             <div className="flex justify-end pt-6 border-t border-border">
               <Button
                 type="submit"

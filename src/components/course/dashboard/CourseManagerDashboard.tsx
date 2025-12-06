@@ -133,7 +133,7 @@ export default function CourseManagerDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto my-8 space-y-6 px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold text-foreground">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground break-words">
         Management: {courseTitle}
       </h1>
 

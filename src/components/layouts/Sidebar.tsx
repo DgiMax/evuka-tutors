@@ -20,6 +20,7 @@ import {
   HelpCircle,
   LogOut,
   Loader2,
+  Store,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -38,6 +39,8 @@ const topNavLinks = [
 const bottomNavLinks = [
   { href: "/profile", label: "My Profile", icon: UserCircle },
   { href: "/discover/organizations", label: "Discover", icon: HelpCircle },
+  { href: "https://e-vuka.com/courses", label: "Marketplace", icon: Store},
+
 ];
 
 type NavLinkProps = {

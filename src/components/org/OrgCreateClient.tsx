@@ -159,8 +159,7 @@ export default function OrgCreateClient() {
 // --- Helper Component for "Add One by One" Policies ---
 const PolicyBuilder = ({ value, onChange, placeholder }: { value: string, onChange: (val: string) => void, placeholder: string }) => {
   const [input, setInput] = useState("");
-
-  // Convert current text block to array (split by double newline for clear separation)
+  
   const items = value ? value.split('\n\n').filter(Boolean) : [];
 
   const handleAdd = () => {
@@ -209,19 +208,20 @@ const PolicyBuilder = ({ value, onChange, placeholder }: { value: string, onChan
           </div>
         )}
         {items.map((item, idx) => (
-          <div key={idx} className="group flex items-start justify-between gap-3 bg-card border p-3 rounded-md text-sm shadow-sm">
+          <div key={idx} className="group flex items-start justify-between gap-3 bg-card border p-3 rounded-md text-sm shadow-sm transition-all hover:border-primary/20">
             <div className="flex gap-3">
               <span className="text-muted-foreground font-mono bg-muted w-6 h-6 flex items-center justify-center rounded-full text-xs shrink-0 mt-0.5">
                 {idx + 1}
               </span>
-              <p className="whitespace-pre-wrap leading-relaxed">{item}</p>
+              <p className="whitespace-pre-wrap leading-relaxed pt-0.5">{item}</p>
             </div>
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+              className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               onClick={() => handleRemove(idx)}
+              title="Remove clause"
             >
               <X className="h-4 w-4" />
             </Button>

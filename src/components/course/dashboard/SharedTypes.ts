@@ -1,14 +1,13 @@
-// src/components/tutor/dashboard/SharedTypes.ts
-
 import * as z from "zod";
 
 // --- CORE TYPES ---
 
-export type CourseStatus = "draft" | "pending_review" | "published";
+export type CourseStatus = "draft" | "pending_review" | "published" | "archived";
 export const statusOptions: Record<CourseStatus, string> = {
     draft: "Draft",
     pending_review: "Pending Review",
     published: "Published",
+    archived: "Archived",
 };
 
 export interface DropdownOption { id: string; name: string; }
@@ -22,14 +21,41 @@ export interface FormOptionsData {
     context: "global" | "organization";
 }
 
-// --- DASHBOARD DATA INTERFACES (From Backend Fetch) ---
+// --- DASHBOARD DATA INTERFACES ---
+
+export interface OptionDetail {
+    id?: number;
+    text: string;
+    is_correct: boolean;
+}
+
+export interface QuestionDetail {
+    id?: number;
+    text: string;
+    question_type: "mcq" | "text";
+    score_weight: number;
+    order: number;
+    options: OptionDetail[];
+}
+
+export interface QuizDetail {
+    id: number;
+    title: string;
+    description: string;
+    max_score: number;
+    time_limit_minutes: number;
+    max_attempts: number;
+    questions: QuestionDetail[];
+}
 
 export interface LessonDetail { 
     id: number; 
-    title: string; 
+    title: string;
+    content: string; 
     video_file: string | null; 
-    quizzes: any[];
+    quizzes: QuizDetail[];
 }
+
 export interface AssignmentDetail {
     id: number; 
     title: string; 
@@ -37,6 +63,7 @@ export interface AssignmentDetail {
     max_score: number; 
     due_date: string | null;
 }
+
 export interface ModuleDetail { 
     id: number; 
     title: string; 
@@ -44,6 +71,7 @@ export interface ModuleDetail {
     lessons: LessonDetail[];
     assignments: AssignmentDetail[];
 }
+
 export interface LiveClassMinimal { 
     id: number; 
     slug: string; 
@@ -52,6 +80,7 @@ export interface LiveClassMinimal {
     start_date: string; 
     lessons_count: number; 
 }
+
 export interface EnrollmentManager { 
     id: number; 
     user_name: string; 
@@ -60,6 +89,7 @@ export interface EnrollmentManager {
     status: "active" | "dropped" | "suspended" | "completed"; 
     date_joined: string; 
 }
+
 export interface AssignmentSummary { 
     id: number; 
     title: string; 
@@ -67,6 +97,7 @@ export interface AssignmentSummary {
     total_submissions: number; 
     pending_review: number; 
 }
+
 export interface QuizSummary { 
     id: number; 
     title: string; 
@@ -83,16 +114,16 @@ export interface CourseManagementData {
     price: number | null;
     short_description: string;
     long_description: string;
-    learning_objectives: string[]; // Array of strings from the backend
+    learning_objectives: string[]; 
     thumbnail: string | null;
     promo_video: string | null;
     global_subcategory: string | null;
     global_level: string | null;
-    global_category: string | null; // Parent ID
+    global_category: string | null; 
     org_category: string | null;
     org_level: string | null;
+    is_public: boolean;
     
-    // Nested dashboard data
     modules: ModuleDetail[];
     assignments_summary: AssignmentSummary[];
     quizzes_summary: QuizSummary[];
@@ -100,9 +131,8 @@ export interface CourseManagementData {
     live_classes: LiveClassMinimal[];
 }
 
-// --- ZOD SCHEMAS for ATOMIC UPDATES ---
+// --- ZOD SCHEMAS ---
 
-// Schemas for CurriculumManagerTab
 export const ModuleAddSchema = z.object({
     title: z.string().min(3, "Title is required."),
     description: z.string().optional(),
@@ -111,9 +141,35 @@ export type ModuleAddValues = z.infer<typeof ModuleAddSchema>;
 
 export const LessonCreateSchema = z.object({
     title: z.string().min(3, "Title is required."),
-    video_file: z.any().optional(), // File or string
+    content: z.string().optional(),
+    video_file: z.any().optional(), 
 });
 export type LessonCreateValues = z.infer<typeof LessonCreateSchema>;
+
+export const OptionSchema = z.object({
+    id: z.number().optional(),
+    text: z.string().min(1, "Option text required"),
+    is_correct: z.boolean(),
+});
+
+export const QuestionSchema = z.object({
+    id: z.number().optional(),
+    text: z.string().min(3, "Question text required"),
+    question_type: z.enum(["mcq", "text"]),
+    score_weight: z.number().min(1).default(1),
+    order: z.number().default(0),
+    options: z.array(OptionSchema).optional(),
+});
+
+export const QuizCreateSchema = z.object({
+    title: z.string().min(3, "Title is required"),
+    description: z.string().optional(),
+    max_score: z.number().min(1).default(10),
+    time_limit_minutes: z.number().min(1).default(30),
+    max_attempts: z.number().min(1).default(3),
+    questions: z.array(QuestionSchema).optional(),
+});
+export type QuizCreateValues = z.infer<typeof QuizCreateSchema>;
 
 export const AssignmentCreateSchema = z.object({
     title: z.string().min(5, "Title is required.").max(255),
@@ -123,8 +179,6 @@ export const AssignmentCreateSchema = z.object({
 });
 export type AssignmentCreateValues = z.infer<typeof AssignmentCreateSchema>;
 
-
-// Schema for AssessmentsManagerTab: Grade Submission
 export const GradeSubmissionSchema = z.object({
     grade: z.number().nullable().refine(val => val === null || val >= 0, "Grade must be non-negative."),
     feedback: z.string().optional(),
@@ -132,34 +186,34 @@ export const GradeSubmissionSchema = z.object({
 });
 export type GradeSubmissionValues = z.infer<typeof GradeSubmissionSchema>;
 
-
-// Schema for EnrollmentManagerTab: Update Enrollment
 export const UpdateEnrollmentSchema = z.object({
     status: z.enum(["active", "dropped", "suspended", "completed"]),
     role: z.enum(["student", "teacher", "ta"]),
 });
 export type UpdateEnrollmentValues = z.infer<typeof UpdateEnrollmentSchema>;
 
-
-// Schema for SettingsTab: Global Course Update
 export const SettingsSchema = z.object({
     title: z.string().min(5).max(100),
     short_description: z.string().min(10).max(200),
     long_description: z.string().min(50),
-    // Frontend structure requires object with 'value', backend expects array of strings
     learning_objectives: z.array(z.object({ value: z.string().min(10, "Objective is too short.") })).min(2).max(10),
+    
     global_category: z.string().min(1, "Required."),
     global_subcategory: z.string().min(1, "Required."),
     global_level: z.string().min(1, "Required."),
+
     org_category: z.string().optional().nullable(),
     org_level: z.string().optional().nullable(),
+
     thumbnail: z.any().optional(), 
-    promo_video: z.string().url("Must be a valid URL link, or empty.").or(z.literal("")).optional().nullable(), 
-    price: z.number().optional().nullable(),
-    status: z.enum(["draft", "pending_review", "published"]),
+    promo_video: z.string().url("Must be a valid URL link.").or(z.literal("")).optional().nullable(), 
+    
+    price: z.coerce.number().min(0).optional().nullable(), 
+    
+    status: z.enum(["draft", "pending_review", "published", "archived"]), 
+    is_public: z.boolean().optional() 
 });
 
-// Used to reset the form internally
 export interface SettingsFormInitialValues {
     title: string;
     short_description: string;
@@ -174,4 +228,5 @@ export interface SettingsFormInitialValues {
     status: CourseStatus;
     thumbnail: File | string | null;
     promo_video: string | null;
+    is_public: boolean;
 }

@@ -367,8 +367,8 @@ export default function CreateAnnouncementPage({
   }
 
   return (
-    <Card className="max-w-3xl mx-auto my-8 border border-gray-200 rounded text-black shadow-none">
-      <CardHeader>
+    <Card className="max-w-4xl mx-4 sm:mx-auto my-8 p-0 mb-4">
+      <CardHeader className="p-6 bg-muted/10 border-b border-border">
         {/* ✅ NEW: Dynamic Title */}
         <CardTitle className="text-xl flex items-center gap-2">
           <Megaphone size={20} />
@@ -620,7 +620,7 @@ export default function CreateAnnouncementPage({
           </CardContent>
 
           {/* --- Footer --- */}
-          <CardFooter className="flex justify-end gap-2 border-t pt-6">
+          <CardFooter className="flex justify-end border-t border-border p-6 gap-2">
             {/* ✅ Don't show 'Save Draft' if it's already published */}
             {watchedStatus !== 'published' && (
                 <Button onClick={onSaveDraft} type="button" variant="secondary" disabled={isLoading} className="rounded">

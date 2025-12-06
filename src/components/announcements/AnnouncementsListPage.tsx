@@ -1,5 +1,3 @@
-// app/(tutor)/announcements/page.tsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -20,14 +18,13 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
-  Inbox, // NEW: For empty state
+  Inbox,
+  X
 } from "lucide-react";
 
-// Context and API
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import api from "@/lib/api/axios";
 
-// Shadcn UI Components
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,11 +37,9 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose, // NEW: Import DialogClose
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -64,29 +59,12 @@ interface Announcement {
   publish_at?: string;
 }
 
-// UPDATED: Remapped status colors to be theme-friendly where possible
 const statusConfig = {
   draft: { label: "Draft", icon: FileText, color: "bg-muted text-muted-foreground" },
-  pending_approval: {
-    label: "Pending",
-    icon: Clock,
-    color: "bg-yellow-100 text-yellow-800",
-  },
-  scheduled: {
-    label: "Scheduled",
-    icon: Calendar,
-    color: "bg-blue-100 text-blue-800",
-  },
-  published: {
-    label: "Published",
-    icon: CheckCircle,
-    color: "bg-green-100 text-green-800",
-  },
-  archived: {
-    label: "Archived",
-    icon: Save,
-    color: "bg-muted text-muted-foreground",
-  },
+  pending_approval: { label: "Pending", icon: Clock, color: "bg-yellow-100 text-yellow-800" },
+  scheduled: { label: "Scheduled", icon: Calendar, color: "bg-blue-100 text-blue-800" },
+  published: { label: "Published", icon: CheckCircle, color: "bg-green-100 text-green-800" },
+  archived: { label: "Archived", icon: Save, color: "bg-muted text-muted-foreground" },
 };
 
 const audienceConfig = {
@@ -96,7 +74,7 @@ const audienceConfig = {
   all_org_courses: "All Organization Courses",
 };
 
-// --- Detail Modal Component (Themed) ---
+// --- Detail Modal Component (Updated Style) ---
 interface AnnouncementDetailModalProps {
   announcement: Announcement;
   open: boolean;
@@ -109,69 +87,78 @@ function AnnouncementDetailModal({
   onOpenChange,
 }: AnnouncementDetailModalProps) {
   const status = statusConfig[announcement.status] || statusConfig.draft;
-  const audience =
-    (audienceConfig as any)[announcement.audience_type] || "Unknown Audience";
+  const audience = (audienceConfig as any)[announcement.audience_type] || "Unknown Audience";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="text-xl">{announcement.title}</DialogTitle>
-          <DialogDescription>
-            Created {format(new Date(announcement.created_at), "PPP")}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="mt-4 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {/* UPDATED: Badge now uses the themed color from config */}
-            <Badge className={cn("hover:bg-none", status.color)}>
-              <status.icon className="mr-1.5" size={14} />
-              {status.label}
-            </Badge>
-            <Badge variant="outline">
-              <Users className="mr-1.5" size={14} />
-              {audience}
-            </Badge>
-            {announcement.organization_name && (
-              // UPDATED: Uses theme primary color
-              <Badge
-                variant="outline"
-                className="border-primary/50 text-primary"
-              >
-                <Building className="mr-1.5" size={14} />
-                {announcement.organization_name}
-              </Badge>
-            )}
-          </div>
-
-          {/* UPDATED: Uses theme muted bg */}
-          <div className="prose prose-sm dark:prose-invert max-w-full max-h-[300px] overflow-y-auto rounded border p-3 bg-muted/50">
-            <p className="whitespace-pre-wrap">{announcement.content}</p>
-          </div>
-
-          {/* UPDATED: Uses theme muted text */}
-          <div className="text-xs text-muted-foreground space-y-1">
-            {announcement.status === "scheduled" && announcement.publish_at && (
-              <p>
-                Scheduled to publish on:{" "}
-                {format(new Date(announcement.publish_at), "PPP 'at' p")}
-              </p>
-            )}
-            {announcement.status === "published" &&
-              announcement.published_at && (
-                <p>
-                  Published on:{" "}
-                  {format(new Date(announcement.published_at), "PPP 'at' p")}
-                </p>
-              )}
-          </div>
+      <DialogContent className="sm:max-w-[600px] p-0 top-[10%] translate-y-0 gap-0 max-h-[85vh] flex flex-col">
+        
+        {/* Gray Header */}
+        <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0 flex items-start justify-between">
+            <div>
+                <DialogTitle className="text-xl">{announcement.title}</DialogTitle>
+                <DialogDescription className="mt-1">
+                    Created {format(new Date(announcement.created_at), "PPP")}
+                </DialogDescription>
+            </div>
+            <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 -mt-2 -mr-2">
+                    <X size={18} />
+                </Button>
+            </DialogClose>
         </div>
+
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
+            {/* Meta Tags */}
+            <div className="flex flex-wrap gap-2">
+                <Badge className={cn("hover:bg-none border-0", status.color)}>
+                    <status.icon className="mr-1.5" size={14} />
+                    {status.label}
+                </Badge>
+                <Badge variant="outline" className="bg-background">
+                    <Users className="mr-1.5" size={14} />
+                    {audience}
+                </Badge>
+                {announcement.organization_name && (
+                    <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5">
+                        <Building className="mr-1.5" size={14} />
+                        {announcement.organization_name}
+                    </Badge>
+                )}
+            </div>
+
+            {/* Content Box */}
+            <div className="prose prose-sm dark:prose-invert max-w-full rounded-lg border p-4 bg-muted/20">
+                <p className="whitespace-pre-wrap leading-relaxed">{announcement.content}</p>
+            </div>
+
+            {/* Timestamps */}
+            <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+                {announcement.status === "scheduled" && announcement.publish_at && (
+                    <p className="flex items-center gap-2">
+                        <Calendar size={12} /> Scheduled: {format(new Date(announcement.publish_at), "PPP 'at' p")}
+                    </p>
+                )}
+                {announcement.status === "published" && announcement.published_at && (
+                    <p className="flex items-center gap-2">
+                        <CheckCircle size={12} /> Published: {format(new Date(announcement.published_at), "PPP 'at' p")}
+                    </p>
+                )}
+            </div>
+        </div>
+
+        {/* Gray Footer */}
+        <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end shrink-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </div>
+
       </DialogContent>
     </Dialog>
   );
 }
 
-// --- Delete Confirmation Modal (Themed) ---
+// --- Delete Confirmation Modal (Updated Style) ---
 interface DeleteAnnouncementDialogProps {
   announcement: Announcement | null;
   open: boolean;
@@ -189,60 +176,48 @@ function DeleteAnnouncementDialog({
 }: DeleteAnnouncementDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          {/* UPDATED: Uses theme destructive color */}
-          <div className="flex items-center gap-3 text-destructive mb-2">
-            <AlertTriangle size={24} />
-            <DialogTitle className="text-xl">Delete Announcement?</DialogTitle>
-          </div>
-          <DialogDescription>
-            Are you sure you want to delete{" "}
-            <strong className="text-foreground">
-              "{announcement?.title}"
-            </strong>
-            ? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="mt-4 flex gap-2 sm:gap-0">
-          <DialogClose asChild>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isDeleting}
-            >
-              Cancel
+      <DialogContent className="sm:max-w-[425px] p-0 top-[15%] translate-y-0 gap-0">
+        
+        {/* Gray Header */}
+        <div className="p-4 border-b bg-muted/40 rounded-t-lg flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+                <DialogTitle className="text-base font-semibold">Delete Announcement?</DialogTitle>
+                <DialogDescription className="text-xs mt-0.5">This action cannot be undone.</DialogDescription>
+            </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+            <p className="text-sm text-foreground/80 leading-relaxed">
+                Are you sure you want to permanently delete <span className="font-semibold text-foreground">"{announcement?.title}"</span>?
+            </p>
+        </div>
+
+        {/* Gray Footer */}
+        <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end gap-3">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isDeleting} className="h-9">
+                Cancel
             </Button>
-          </DialogClose>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
-              </>
-            ) : (
-              "Delete Forever"
-            )}
-          </Button>
-        </DialogFooter>
+            <Button variant="destructive" onClick={onConfirm} disabled={isDeleting} className="h-9">
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete Forever
+            </Button>
+        </div>
+
       </DialogContent>
     </Dialog>
   );
 }
 
-// --- Main List Page Component (Themed & Responsive) ---
+// --- Main List Page Component ---
 export default function AnnouncementsListPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedAnnouncement, setSelectedAnnouncement] =
-    useState<Announcement | null>(null);
-
-  // Delete state
-  const [announcementToDelete, setAnnouncementToDelete] =
-    useState<Announcement | null>(null);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { activeSlug } = useActiveOrg();
@@ -268,19 +243,13 @@ export default function AnnouncementsListPage() {
     if (!announcementToDelete) return;
     setIsDeleting(true);
     try {
-      await api.delete(
-        `/announcements/tutor/manage/${announcementToDelete.id}/`
-      );
+      await api.delete(`/announcements/tutor/manage/${announcementToDelete.id}/`);
       toast.success("Announcement deleted successfully.");
-      setAnnouncements((prev) =>
-        prev.filter((a) => a.id !== announcementToDelete.id)
-      );
+      setAnnouncements((prev) => prev.filter((a) => a.id !== announcementToDelete.id));
       setAnnouncementToDelete(null);
     } catch (error: any) {
       console.error("Delete failed:", error);
-      toast.error(
-        error.response?.data?.detail || "Failed to delete announcement."
-      );
+      toast.error(error.response?.data?.detail || "Failed to delete announcement.");
     } finally {
       setIsDeleting(false);
     }
@@ -288,128 +257,110 @@ export default function AnnouncementsListPage() {
 
   return (
     <>
-      {/* UPDATED: Responsive card, themed, and flush padding */}
       <Card className="max-w-5xl mx-4 sm:mx-auto my-8 p-0">
-        {/* UPDATED: Responsive header (stacks on mobile) and themed padding */}
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-muted/10 border-b">
           <div>
             <CardTitle className="text-xl flex items-center gap-2">
-              <Megaphone size={20} />
+              <Megaphone size={20} className="text-primary" />
               My Announcements
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="mt-1">
               View, edit, and manage all your created announcements.
             </CardDescription>
           </div>
-          {/* UPDATED: Button uses theme primary color */}
-          <Link href="/announcements/create" passHref>
-            <Button className="w-full sm:w-auto mt-2 sm:mt-0">
-              <Plus className="mr-2" size={16} />
-              Create New
+          <Link href="/announcements/create" passHref className="w-full sm:w-auto mt-4 sm:mt-0">
+            <Button className="w-full sm:w-auto">
+              <Plus className="mr-2" size={16} /> Create New
             </Button>
           </Link>
         </CardHeader>
 
-        <CardContent className="p-6 pt-0">
+        <CardContent className="p-0">
           {isLoading ? (
-            // UPDATED: Themed loader
-            <div className="flex flex-col justify-center items-center h-40">
+            <div className="flex flex-col justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-2 text-muted-foreground">
-                Loading announcements...
-              </p>
+              <p className="ml-2 text-muted-foreground mt-2">Loading announcements...</p>
             </div>
           ) : announcements.length === 0 ? (
-            // UPDATED: Themed empty state
-            <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50">
-              <Inbox className="h-8 w-8 text-muted-foreground" />
-              <p className="text-muted-foreground">
-                You haven't created any announcements yet.
+            <div className="flex flex-col items-center justify-center h-64 p-6 text-center">
+              <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                <Inbox className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg">No announcements yet</h3>
+              <p className="text-muted-foreground text-sm max-w-sm mt-1 mb-4">
+                You haven't created any announcements. Share updates with your students to keep them engaged.
               </p>
               <Link href="/announcements/create" passHref>
-                <Button variant="link" className="text-primary">
-                  Create your first one
+                <Button variant="outline" className="gap-2">
+                    <Plus size={14} /> Create your first one
                 </Button>
               </Link>
             </div>
           ) : (
-            // UPDATED: Themed list
-            <div className="divide-y divide-border border rounded-lg overflow-hidden">
+            <div className="p-2">
               {announcements.map((ann) => {
                 const status = statusConfig[ann.status] || statusConfig.draft;
-                const canEdit = true;
-
+                
                 return (
                   <div
                     key={ann.id}
-                    className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between hover:bg-muted/50 transition-colors"
+                    className="group flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-transparent hover:border-border hover:bg-muted/40 transition-all"
                   >
-                    <div className="flex-1 mb-3 md:mb-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span
-                          className={cn(
-                            "h-2.5 w-2.5 rounded-full flex-shrink-0",
-                            status.color
-                          )}
-                          title={status.label}
-                        ></span>
-                        <h3 className="font-semibold text-foreground line-clamp-1">
-                          {ann.title}
-                        </h3>
-                        {ann.organization_name && (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] px-1.5 py-0 font-normal"
-                          >
-                            {ann.organization_name}
-                          </Badge>
-                        )}
+                    <div className="flex flex-1 items-start gap-3 min-w-0 w-full">
+                      <div className={cn("mt-0.5 h-8 w-8 rounded-full flex items-center justify-center shrink-0 bg-opacity-10", status.color)}>
+                        <status.icon size={14} className={status.color.split(" ")[1]} />
                       </div>
 
-                      <div className="flex items-center text-sm text-muted-foreground gap-3">
-                        <span
-                          className={cn(
-                            "flex items-center text-xs font-medium px-2 py-0.5 rounded-full",
-                            status.color
+                      <div className="grid gap-1 min-w-0 w-full">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-semibold text-sm text-foreground truncate leading-none">
+                            {ann.title}
+                          </h3>
+                          {ann.organization_name && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 font-normal text-muted-foreground border-muted-foreground/20">
+                              {ann.organization_name}
+                            </Badge>
                           )}
-                        >
-                          {status.label}
-                        </span>
-                        <span>•</span>
-                        <span>
-                          {format(new Date(ann.created_at), "MMM d, yyyy")}
-                        </span>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground line-clamp-1">
+                          {ann.content}
+                        </p>
+
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                          <span className={cn("font-medium", status.color.split(" ")[1])}>
+                            {status.label}
+                          </span>
+                          <span className="text-muted-foreground/30">•</span>
+                          <span className="flex items-center gap-1">
+                            <Calendar size={10} />
+                            {format(new Date(ann.created_at), "MMM d")}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 w-full md:w-auto mt-2 md:mt-0">
-                      {/* UPDATED: Themed ghost button */}
+                    <div className="flex items-center gap-1 self-end sm:self-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-muted-foreground hover:text-primary hover:bg-primary/10 flex-1 md:flex-none"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         onClick={() => setSelectedAnnouncement(ann)}
                         title="View Details"
                       >
                         <Eye size={16} />
                       </Button>
-                      {/* UPDATED: Themed ghost button (Secondary) */}
+
                       <Link href={`/announcements/${ann.id}/edit`} passHref>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-muted-foreground hover:text-secondary hover:bg-secondary/10 flex-1 md:flex-none"
-                          disabled={!canEdit}
-                          title="Edit"
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" title="Edit">
                           <Pencil size={16} />
                         </Button>
                       </Link>
-                      {/* UPDATED: Themed ghost button (Destructive) */}
+
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-1 md:flex-none"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setAnnouncementToDelete(ann)}
                         title="Delete"
                       >
@@ -424,24 +375,19 @@ export default function AnnouncementsListPage() {
         </CardContent>
       </Card>
 
-      {/* --- Detail Modal --- */}
+      {/* Modals */}
       {selectedAnnouncement && (
         <AnnouncementDetailModal
           announcement={selectedAnnouncement}
           open={!!selectedAnnouncement}
-          onOpenChange={(open) => {
-            if (!open) setSelectedAnnouncement(null);
-          }}
+          onOpenChange={(open) => !open && setSelectedAnnouncement(null)}
         />
       )}
 
-      {/* --- Delete Modal --- */}
       <DeleteAnnouncementDialog
         announcement={announcementToDelete}
         open={!!announcementToDelete}
-        onOpenChange={(open) => {
-          if (!open) setAnnouncementToDelete(null);
-        }}
+        onOpenChange={(open) => !open && setAnnouncementToDelete(null)}
         onConfirm={handleDelete}
         isDeleting={isDeleting}
       />
