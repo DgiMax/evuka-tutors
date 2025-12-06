@@ -100,6 +100,8 @@ export default function OrgCreateClient() {
   // State
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+
+  const [activePolicyTab, setActivePolicyTab] = useState("terms");
   
   // File Handling State
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -541,73 +543,86 @@ const PolicyBuilder = ({ value, onChange, placeholder }: { value: string, onChan
                   </div>
                 )}
 
-                {/* --- STEP 4: POLICIES (UPDATED) --- */}
+                {/* --- STEP 4: POLICIES --- */}
                 {currentStep === 4 && (
                   <div className="space-y-6">
                     <div className="mb-4">
-                        <h3 className="font-semibold text-lg">Legal & Policies</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Build your policies by adding clauses one by one. We will format them for you.
-                        </p>
+                      <h3 className="font-semibold text-lg">Legal & Policies</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Build your policies by adding clauses one by one. We will format them for you.
+                      </p>
                     </div>
 
-                    <Tabs defaultValue="terms" className="w-full">
-                        {/* Scrollable Tabs List for Mobile Responsiveness */}
-                        <div className="overflow-x-auto pb-2 -mx-2 px-2 md:mx-0 md:px-0">
-                            <TabsList className="inline-flex w-full md:grid md:grid-cols-3 min-w-[300px]">
-                                <TabsTrigger value="terms">Terms of Service</TabsTrigger>
-                                <TabsTrigger value="privacy">Privacy Policy</TabsTrigger>
-                                <TabsTrigger value="refund">Refund Policy</TabsTrigger>
-                            </TabsList>
-                        </div>
+                    <Tabs value={activePolicyTab} onValueChange={setActivePolicyTab} className="w-full">
+                      
+                      <div className="md:hidden mb-4">
+                        <Select value={activePolicyTab} onValueChange={setActivePolicyTab}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Policy Section" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="terms">Terms of Service</SelectItem>
+                            <SelectItem value="privacy">Privacy Policy</SelectItem>
+                            <SelectItem value="refund">Refund Policy</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                        <TabsContent value="terms" className="space-y-4 mt-4">
-                            <FormField control={form.control} name="policies.terms_of_service" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Terms of Service Clauses</FormLabel>
-                                    <FormControl>
-                                        <PolicyBuilder 
-                                            value={field.value || ""} 
-                                            onChange={field.onChange}
-                                            placeholder="e.g. 'Users must be respectful to tutors at all times.'" 
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </TabsContent>
+                      <div className="hidden md:block overflow-x-auto pb-2 -mx-2 px-2 md:mx-0 md:px-0">
+                        <TabsList className="inline-flex w-full md:grid md:grid-cols-3 min-w-[300px]">
+                          <TabsTrigger value="terms">Terms of Service</TabsTrigger>
+                          <TabsTrigger value="privacy">Privacy Policy</TabsTrigger>
+                          <TabsTrigger value="refund">Refund Policy</TabsTrigger>
+                        </TabsList>
+                      </div>
 
-                        <TabsContent value="privacy" className="space-y-4 mt-4">
-                              <FormField control={form.control} name="policies.privacy_policy" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Privacy Statements</FormLabel>
-                                    <FormControl>
-                                        <PolicyBuilder 
-                                            value={field.value || ""} 
-                                            onChange={field.onChange}
-                                            placeholder="e.g. 'We do not share your personal data with third parties.'" 
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </TabsContent>
+                      <TabsContent value="terms" className="space-y-4 mt-4">
+                        <FormField control={form.control} name="policies.terms_of_service" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Terms of Service Clauses</FormLabel>
+                            <FormControl>
+                              <PolicyBuilder
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="e.g. 'Users must be respectful to tutors at all times.'"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </TabsContent>
 
-                        <TabsContent value="refund" className="space-y-4 mt-4">
-                              <FormField control={form.control} name="policies.refund_policy" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Refund Conditions</FormLabel>
-                                    <FormControl>
-                                        <PolicyBuilder 
-                                            value={field.value || ""} 
-                                            onChange={field.onChange}
-                                            placeholder="e.g. 'Full refund available if cancelled within 24 hours.'" 
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )} />
-                        </TabsContent>
+                      <TabsContent value="privacy" className="space-y-4 mt-4">
+                        <FormField control={form.control} name="policies.privacy_policy" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Privacy Statements</FormLabel>
+                            <FormControl>
+                              <PolicyBuilder
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="e.g. 'We do not share your personal data with third parties.'"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </TabsContent>
+
+                      <TabsContent value="refund" className="space-y-4 mt-4">
+                        <FormField control={form.control} name="policies.refund_policy" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Refund Conditions</FormLabel>
+                            <FormControl>
+                              <PolicyBuilder
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="e.g. 'Full refund available if cancelled within 24 hours.'"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </TabsContent>
                     </Tabs>
                   </div>
                 )}
