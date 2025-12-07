@@ -271,10 +271,7 @@ const PolicyBuilder = ({ value, onChange, placeholder }: { value: string, onChan
     formData.append("policies", JSON.stringify(data.policies));
 
     try {
-      // Must set Content-Type to undefined or multipart/form-data so browser sets boundary
-      const res = await api.post("/organizations/create/", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/organizations/create/", formData);
 
       const newOrgSlug = res.data.slug;
       toast.success("Organization created successfully!");

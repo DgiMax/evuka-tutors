@@ -204,11 +204,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
     try {
       const response = await api.put(
         `/tutor-courses/${courseSlug}/`,
-        formData,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
+        formData);
       toast.success(
         `Settings updated successfully! Status: ${
           statusOptions[response.data.status as CourseStatus]

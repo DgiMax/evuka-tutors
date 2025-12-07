@@ -1017,14 +1017,10 @@ export default function CreateEventPage({
 
     try {
       if (isEditMode) {
-        await api.put(`/events/tutor-events/${eventSlug}/`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.put(`/events/tutor-events/${eventSlug}/`, formData);
         toast.success("Event updated successfully!");
       } else {
-        await api.post("events/tutor-events/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await api.post("events/tutor-events/", formData);
         toast.success("Event created successfully!");
         reset();
         setCurrentStep(0);

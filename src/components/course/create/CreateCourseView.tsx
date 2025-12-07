@@ -346,14 +346,9 @@ export default function CourseCreatePage({
 
     try {
       const response = isEditMode
-        ? await api.put(`/tutor-courses/${courseSlug}/`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          })
-        : await api.post("/tutor-courses/", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          });
+        ? await api.put(`/tutor-courses/${courseSlug}/`, formData)
+        : await api.post("/tutor-courses/", formData);
       
-      // (Rest of the try/catch/finally block is unchanged)
       const { title: courseTitle, slug } = response.data;
       let message = "";
       let description = "";
@@ -407,6 +402,7 @@ export default function CourseCreatePage({
                 Do you want to add a live class schedule (e.g., for weekly Q&A)
                 to this course?
               </p>
+              {/* Ensure Link is imported from 'next/link' */}
               <Link href={`/courses/${slug}/live-classes/create`} passHref>
                 <Button className="w-full">
                   <Plus className="mr-2" size={16} /> Add Live Classes
