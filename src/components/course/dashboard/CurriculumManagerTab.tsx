@@ -60,17 +60,18 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
     });
 
     return (
-        <Card className="border border-border shadow-none p-4 sm:p-6">
-            <CardHeader className="flex flex-row items-center justify-between px-0">
-                <div>
+        <Card className="border border-border shadow-none p-3 sm:p-6">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-0 gap-4">
+                <div className="space-y-1">
                     <CardTitle>Course Curriculum</CardTitle>
                     <CardDescription>Manage modules, lessons, quizzes, and assignments.</CardDescription>
                 </div>
                 <Dialog open={isModuleDialogOpen} onOpenChange={setModuleDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button><Plus className="h-4 w-4 mr-2" /> Add Module</Button>
+                        <Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" /> Add Module</Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+                    {/* Responsive Dialog: w-[95vw] on mobile */}
+                    <DialogContent className="w-[95vw] sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0 rounded-lg">
 
                         <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
                             <DialogTitle>Create New Module</DialogTitle>
@@ -79,7 +80,7 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                             </p>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto min-h-0 p-6">
+                        <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
                             <Form {...moduleForm}>
                                 <form 
                                     id="create-module-form" 
@@ -99,7 +100,7 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                                         <FormItem>
                                             <FormLabel>Description</FormLabel>
                                             <FormControl>
-                                                <Textarea {...field} value={field.value ?? ""} placeholder="What will students learn in this module?" rows={4} />
+                                                <Textarea {...field} value={field.value ?? ""} placeholder="What will students learn in this module?" rows={4} className="resize-none" />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -113,6 +114,7 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                                 type="submit" 
                                 form="create-module-form" 
                                 disabled={isAddingModule}
+                                className="w-full sm:w-auto"
                             >
                                 {isAddingModule ? (
                                     <Loader2 className="h-4 w-4 animate-spin mr-2" /> 
@@ -135,13 +137,13 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                 ) : (
                     <Accordion type="single" collapsible className="w-full space-y-4">
                         {modules.map((mod, modIndex) => (
-                            <AccordionItem key={mod.id} value={`module-${mod.id}`} className="border rounded-lg bg-card px-4">
+                            <AccordionItem key={mod.id} value={`module-${mod.id}`} className="border rounded-lg bg-card px-3 sm:px-4">
                                 <AccordionTrigger className="hover:no-underline py-4">
-                                    <div className="flex items-center gap-3 text-left w-full">
-                                        <Badge variant="outline" className="h-6 w-6 rounded-full flex items-center justify-center p-0 shrink-0">{modIndex + 1}</Badge>
-                                        <div className="flex flex-col flex-1">
-                                            <span className="font-semibold text-lg">{mod.title}</span>
-                                            {mod.description && <span className="text-xs text-muted-foreground font-normal line-clamp-1">{mod.description}</span>}
+                                    <div className="flex items-start sm:items-center gap-3 text-left w-full overflow-hidden">
+                                        <Badge variant="outline" className="h-6 w-6 rounded-full flex items-center justify-center p-0 shrink-0 mt-0.5 sm:mt-0">{modIndex + 1}</Badge>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                            <span className="font-semibold text-base sm:text-lg truncate block">{mod.title}</span>
+                                            {mod.description && <span className="text-xs text-muted-foreground font-normal truncate block">{mod.description}</span>}
                                         </div>
                                     </div>
                                 </AccordionTrigger>
@@ -149,7 +151,7 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                                     
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><BookOpen size={14} /> Lessons</h4>
+                                            <h4 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><BookOpen size={14} /> Lessons</h4>
                                             <LessonManagerDialog module={mod} courseSlug={courseSlug} mode="create" />
                                         </div>
                                         {mod.lessons.length === 0 ? (
@@ -167,7 +169,7 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                                     
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><FileText size={14} /> Assignment</h4>
+                                            <h4 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><FileText size={14} /> Assignment</h4>
                                             {/* STRICT CONSTRAINT: Only Show Add if 0 assignments */}
                                             {mod.assignments.length === 0 && (
                                                 <AssignmentManagerDialog module={mod} courseSlug={courseSlug} mode="create" />
@@ -178,14 +180,17 @@ const CurriculumManagerTab: React.FC<CurriculumTabProps> = ({ courseSlug, module
                                         ) : (
                                             <div className="grid gap-3">
                                                 {mod.assignments.map((assignment) => (
-                                                    <div key={assignment.id} className="flex items-center justify-between p-4 rounded-lg border bg-amber-50/50 border-amber-100">
-                                                        <div>
-                                                            <div className="font-medium flex items-center gap-2">
-                                                                <FileText size={16} className="text-amber-600"/> {assignment.title}
+                                                    <div key={assignment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border bg-amber-50/50 border-amber-100 gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium flex items-center gap-2 truncate">
+                                                                <FileText size={16} className="text-amber-600 shrink-0"/> 
+                                                                <span className="truncate">{assignment.title}</span>
                                                             </div>
-                                                            <div className="text-xs text-muted-foreground mt-1">Max Score: {assignment.max_score}</div>
+                                                            <div className="text-xs text-muted-foreground mt-1 ml-6">Max Score: {assignment.max_score}</div>
                                                         </div>
-                                                        <AssignmentManagerDialog module={mod} courseSlug={courseSlug} mode="edit" existingAssignment={assignment} />
+                                                        <div className="self-end sm:self-auto">
+                                                            <AssignmentManagerDialog module={mod} courseSlug={courseSlug} mode="edit" existingAssignment={assignment} />
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -208,29 +213,29 @@ const LessonRow: React.FC<{ lesson: LessonDetail; courseSlug: string }> = ({ les
 
     return (
         <div className="border rounded-md bg-background overflow-hidden">
-            <div className="flex items-center justify-between p-3 gap-3">
-                <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex items-center justify-between p-2 sm:p-3 gap-2 sm:gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 overflow-hidden flex-1 min-w-0">
                     <div className={cn("p-2 rounded-full shrink-0", lesson.video_file ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500")}>
                         {lesson.video_file ? <Video size={16} /> : <FileText size={16} />}
                     </div>
-                    <div className="truncate">
-                        <div className="font-medium truncate">{lesson.title}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-2">
-                            {lesson.video_file && <span>Video</span>}
-                            {lesson.content && <span>• Text Content</span>}
+                    <div className="truncate min-w-0 flex-1">
+                        <div className="font-medium truncate text-sm sm:text-base">{lesson.title}</div>
+                        <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-2 truncate">
+                            {lesson.video_file && <span className="shrink-0">Video</span>}
+                            {lesson.content && <span className="shrink-0">• Content</span>}
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                     <LessonPreviewDialog lesson={lesson} />
                     <LessonManagerDialog module={{ id: 0, title: "", description: "", lessons: [], assignments: [] }} courseSlug={courseSlug} mode="edit" existingLesson={lesson} />
                     <DeleteButton type="lesson" id={lesson.id} courseSlug={courseSlug} />
                 </div>
             </div>
 
-            <div className="bg-muted/30 px-3 py-2 border-t flex flex-col gap-2">
+            <div className="bg-muted/30 px-2 sm:px-3 py-2 border-t flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground flex items-center gap-1">
                         <HelpCircle size={12} /> Quiz Assessment
                     </span>
                     {/* STRICT CONSTRAINT: Only Show Add if 0 quizzes */}
@@ -238,10 +243,10 @@ const LessonRow: React.FC<{ lesson: LessonDetail; courseSlug: string }> = ({ les
                 </div>
                 
                 {hasQuiz && (
-                    <div className="flex items-center justify-between text-sm bg-background border rounded px-3 py-2 mt-1">
-                        <div className="flex items-center gap-2">
-                            <span className="truncate font-medium">{lesson.quizzes[0].title}</span>
-                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5">{lesson.quizzes[0].questions?.length || 0} Questions</Badge>
+                    <div className="flex items-center justify-between text-sm bg-background border rounded px-2 sm:px-3 py-2 mt-1">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="truncate font-medium text-xs sm:text-sm">{lesson.quizzes[0].title}</span>
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">{lesson.quizzes[0].questions?.length || 0} Qs</Badge>
                         </div>
                         <QuizManagerDialog lesson={lesson} courseSlug={courseSlug} mode="edit" existingQuiz={lesson.quizzes[0]} />
                     </div>
@@ -319,24 +324,24 @@ const LessonManagerDialog: React.FC<{
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {mode === "create" ? (
-                    <Button variant="outline" size="sm" className="h-7"><Plus size={14} className="mr-1" /> Add Lesson</Button>
+                    <Button variant="outline" size="sm" className="h-7 text-xs"><Plus size={14} className="mr-1" /> Add Lesson</Button>
                 ) : (
                     <Button variant="ghost" size="icon" className="h-8 w-8"><Edit size={16} /></Button>
                 )}
             </DialogTrigger>
             
-            <DialogContent className="sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+            <DialogContent className="w-[95vw] sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0 rounded-lg">
                 
                 {/* Header (Gray) */}
                 <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
                     <DialogTitle>{mode === "create" ? "Add Lesson" : "Edit Lesson"}</DialogTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1 truncate">
                         {mode === "create" ? `Adding to: ${module.title}` : existingLesson?.title}
                     </p>
                 </div>
                 
                 {/* Scrollable Body: flex-1 + min-h-0 ensures scrolling works! */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-6">
+                <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
                     <Form {...form}>
                         <form id="lesson-form" onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
                             <FormField control={form.control} name="title" render={({ field }) => (
@@ -349,7 +354,7 @@ const LessonManagerDialog: React.FC<{
                             <FormField control={form.control} name="content" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Text Content (Markdown)</FormLabel>
-                                    <FormControl><Textarea rows={6} {...field} value={field.value ?? ""} /></FormControl>
+                                    <FormControl><Textarea rows={6} {...field} value={field.value ?? ""} className="resize-none" /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
@@ -361,7 +366,7 @@ const LessonManagerDialog: React.FC<{
                                             <ShadcnInput 
                                                 type="file" 
                                                 accept="video/*" 
-                                                className="cursor-pointer"
+                                                className="cursor-pointer file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                                                 onChange={(e) => onChange(e.target.files?.[0] || null)} 
                                                 {...rest} 
                                                 value={value?.fileName ?? ""} // File inputs are uncontrolled mostly, but just in case
@@ -427,16 +432,16 @@ const LessonPreviewDialog: React.FC<{ lesson: LessonDetail }> = ({ lesson }) => 
             </DialogTrigger>
 
             {/* Layout Container */}
-            <DialogContent className="sm:max-w-3xl p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+            <DialogContent className="w-[95vw] sm:max-w-3xl p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0 rounded-lg">
                 
                 {/* Gray Header (Fixed) */}
                 <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
-                    <DialogTitle>{lesson.title}</DialogTitle>
+                    <DialogTitle className="truncate pr-4">{lesson.title}</DialogTitle>
                     <p className="text-sm text-muted-foreground mt-1">Lesson Preview</p>
                 </div>
 
                 {/* Body (Scrollable In-Between) */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-6">
+                <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
                     <div className="space-y-6">
                         {/* Video Section */}
                         {lesson.video_file && (
@@ -450,7 +455,7 @@ const LessonPreviewDialog: React.FC<{ lesson: LessonDetail }> = ({ lesson }) => 
                             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide border-b pb-2 mb-3">
                                 Lesson Notes
                             </h3>
-                            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 break-words">
                                 {lesson.content || "No text content available."}
                             </div>
                         </div>
@@ -459,7 +464,7 @@ const LessonPreviewDialog: React.FC<{ lesson: LessonDetail }> = ({ lesson }) => 
 
                 {/* Gray Footer (Fixed) */}
                 <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end shrink-0">
-                    <Button variant="secondary" onClick={() => setOpen(false)}>
+                    <Button variant="secondary" onClick={() => setOpen(false)} className="w-full sm:w-auto">
                         Close Preview
                     </Button>
                 </div>
@@ -534,18 +539,18 @@ const AssignmentManagerDialog: React.FC<{
                 )}
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+            <DialogContent className="w-[95vw] sm:max-w-lg p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0 rounded-lg">
                 
                 {/* Gray Header */}
                 <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
                     <DialogTitle>{mode === "create" ? "Create Assignment" : "Edit Assignment"}</DialogTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1 truncate">
                         {mode === "create" ? `Adding to: ${module.title}` : existingAssignment?.title}
                     </p>
                 </div>
 
                 {/* Scrollable Body: flex-1 + min-h-0 enables the scroll */}
-                <div className="flex-1 overflow-y-auto min-h-0 p-6">
+                <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6">
                     <Form {...form}>
                         <form id="assignment-form" onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
                             <FormField control={form.control} name="title" render={({ field }) => (
@@ -561,12 +566,12 @@ const AssignmentManagerDialog: React.FC<{
                                 <FormItem>
                                     <FormLabel>Instructions</FormLabel>
                                     <FormControl>
-                                        <Textarea rows={4} {...field} value={field.value ?? ""} />
+                                        <Textarea rows={4} {...field} value={field.value ?? ""} className="resize-none" />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )} />
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="max_score" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Max Score</FormLabel>
@@ -738,10 +743,10 @@ const QuizManagerDialog: React.FC<{
                 )}
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-4xl p-0 top-[5%] translate-y-0 max-h-[90vh] flex flex-col gap-0">
+            <DialogContent className="w-[95vw] sm:max-w-4xl p-0 top-[5%] translate-y-0 max-h-[90vh] flex flex-col gap-0 rounded-lg">
                 <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
                     <DialogTitle>{mode === "create" ? "Create Quiz" : "Manage Quiz"}</DialogTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1 truncate">
                         {mode === "create" ? `Attached to: ${lesson.title}` : existingQuiz?.title}
                     </p>
                 </div>
@@ -750,7 +755,7 @@ const QuizManagerDialog: React.FC<{
                     <Form {...form}>
                         <form id="quiz-form" onSubmit={form.handleSubmit((d) => mutation.mutate(d), onInvalid)} className="h-full flex flex-col min-h-0">
                             
-                            <div className="px-6 pt-4 shrink-0">
+                            <div className="px-4 sm:px-6 pt-4 shrink-0">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                     <TabsList className="w-full grid grid-cols-2">
                                         <TabsTrigger value="settings">General Settings</TabsTrigger>
@@ -760,14 +765,14 @@ const QuizManagerDialog: React.FC<{
                             </div>
                             
                             {activeTab === "settings" && (
-                                <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+                                <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4">
                                     <FormField control={form.control} name="title" render={({ field }) => (
                                         <FormItem><FormLabel>Title</FormLabel><FormControl><ShadcnInput {...field} value={field.value ?? ""} /></FormControl><FormMessage/></FormItem>
                                     )} />
                                     <FormField control={form.control} name="description" render={({ field }) => (
-                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} /></FormControl><FormMessage/></FormItem>
+                                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} className="resize-none" /></FormControl><FormMessage/></FormItem>
                                     )} />
-                                    <div className="grid grid-cols-3 gap-4 items-start">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
                                         <FormField control={form.control} name="max_score" render={({ field }) => (
                                             <FormItem><FormLabel>Max Score</FormLabel><FormControl><ShadcnInput type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} value={field.value ?? 0} /></FormControl></FormItem>
                                         )} />
@@ -798,14 +803,14 @@ const QuizManagerDialog: React.FC<{
                             )}
 
                             {activeTab === "questions" && (
-                                <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4 bg-muted/5">
+                                <div className="flex-1 overflow-y-auto min-h-0 p-4 sm:p-6 space-y-4 bg-muted/5">
                                     {questions.length === 0 && (
                                         <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
                                             <p>No questions added yet.</p>
                                         </div>
                                     )}
                                     {questions.map((qField, qIndex) => (
-                                        <Card key={qField.id} className="p-4 border bg-card shadow-sm">
+                                        <Card key={qField.id} className="p-3 sm:p-4 border bg-card shadow-sm">
                                             <div className="flex justify-between items-start mb-3 pb-3 border-b">
                                                 <Badge variant="outline" className="h-6 px-2 flex items-center justify-center bg-muted font-mono">
                                                     Q{qIndex + 1}
@@ -826,7 +831,7 @@ const QuizManagerDialog: React.FC<{
                                                 <FormField control={form.control} name={`questions.${qIndex}.text`} render={({ field }) => (
                                                     <FormItem>
                                                         <FormControl>
-                                                            <Textarea placeholder="Type your question here..." className="bg-background min-h-[60px]" {...field} value={field.value ?? ""} />
+                                                            <Textarea placeholder="Type your question here..." className="bg-background min-h-[60px] resize-none" {...field} value={field.value ?? ""} />
                                                         </FormControl>
                                                         <FormMessage/>
                                                     </FormItem>
@@ -921,16 +926,16 @@ const QuizOptionsArray = ({ nestIndex, control }: { nestIndex: number, control: 
     });
 
     return (
-        <div className="ml-10 border-l-2 pl-4 space-y-2">
+        <div className="ml-0 sm:ml-10 border-l-0 sm:border-l-2 pl-0 sm:pl-4 space-y-2">
             {fields.map((item, k) => (
                 <div key={item.id} className="flex items-center gap-2">
                     <FormField control={control} name={`questions.${nestIndex}.options.${k}.is_correct`} render={({ field }) => (
-                        <input type="checkbox" checked={field.value} onChange={field.onChange} className="h-4 w-4 accent-green-600" />
+                        <input type="checkbox" checked={field.value} onChange={field.onChange} className="h-4 w-4 shrink-0 accent-green-600" />
                     )} />
                     <FormField control={control} name={`questions.${nestIndex}.options.${k}.text`} render={({ field }) => (
                         <ShadcnInput placeholder={`Option ${k + 1}`} {...field} className="h-8 text-sm" />
                     )} />
-                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => remove(k)}><Trash2 size={12} /></Button>
+                    <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => remove(k)}><Trash2 size={12} /></Button>
                 </div>
             ))}
             <Button type="button" variant="link" size="sm" className="h-6 px-0 text-xs" onClick={() => append({ text: "", is_correct: false })}>+ Add Option</Button>
@@ -989,7 +994,7 @@ const DeleteButton: React.FC<{ type: "lesson" | "module"; id: number; courseSlug
             </DropdownMenu>
 
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent className="sm:max-w-md p-0 top-[15%] translate-y-0 gap-0">
+                <DialogContent className="w-[90vw] sm:max-w-md p-0 top-[15%] translate-y-0 gap-0 rounded-lg">
                     <div className="p-4 border-b bg-muted/40 rounded-t-lg flex items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                             <AlertTriangleIcon className="h-5 w-5 text-red-600" />
