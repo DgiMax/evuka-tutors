@@ -2,12 +2,13 @@
 
 import React from "react";
 import Link from "next/link";
-import { Calendar, Loader2, Edit, Plus, Clock, Inbox } from "lucide-react";
+import { Calendar, Loader2, Edit, Clock, Inbox, ListVideo } from "lucide-react";
 
 import { LiveClassMinimal } from "./SharedTypes";
 
 // --- UI Components ---
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -15,14 +16,6 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface LiveClassTabProps {
   courseSlug: string;
@@ -37,17 +30,18 @@ const LoaderState: React.FC = () => (
   </div>
 );
 
-// NEW: Reusable Empty State component (themed)
 const EmptyState: React.FC<{
   message: string;
   linkPath: string;
   linkText: string;
 }> = ({ message, linkPath, linkText }) => (
-  <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50 p-4">
-    <Inbox className="h-8 w-8 text-muted-foreground" />
-    <p className="text-muted-foreground mt-2 text-center">{message}</p>
+  <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-border rounded-xl bg-muted/30 p-6">
+    <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mb-4">
+        <Inbox className="h-6 w-6 text-muted-foreground" />
+    </div>
+    <p className="text-muted-foreground text-center font-medium">{message}</p>
     {linkPath && linkText && (
-      <Button asChild variant="link" className="text-primary">
+      <Button asChild variant="link" className="text-primary mt-1">
         <Link href={linkPath}>{linkText}</Link>
       </Button>
     )}
@@ -55,15 +49,9 @@ const EmptyState: React.FC<{
 );
 
 // --- Helper Function ---
-// ✅ FIX: Changed type from '"none" | "weekly"' to 'string' to resolve TS error.
 function formatRecurrence(type: string): string {
-  if (type === "none") {
-    return "One-time class";
-  }
-  if (type === "weekly") {
-    return "Weekly";
-  }
-  // Fallback for any other unexpected string values
+  if (type === "none") return "One-time class";
+  if (type === "weekly") return "Weekly";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
@@ -71,108 +59,81 @@ const LiveClassManagerTab: React.FC<LiveClassTabProps> = ({
   courseSlug,
   liveClasses,
 }) => {
-  // Corrected link to match the create page route
   const createLink = `/courses/${courseSlug}/live-classes/create`;
 
-  // Reusable function to render the "Manage" button
-  const renderManageButton = (lc: LiveClassMinimal) => (
-    // Corrected link to match the manage page route
-    <Button asChild size="sm" variant="secondary">
-      <Link href={`/courses/${courseSlug}/live-classes/${lc.slug}/manage`}>
-        <Edit size={14} className="mr-1" /> Manage
-      </Link>
-    </Button>
-  );
-
   return (
-    // UPDATED: Card uses theme colors and flush padding
-    <Card className="p-0">
-      {/* UPDATED: Header is responsive and themed */}
-      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6">
+    <Card className="mx-4 sm:mx-auto my-4 mt-0 p-0 border border-border shadow-none sm:shadow-sm">
+      {/* Header */}
+      <CardHeader className="p-6 p-6 bg-muted/10 border-b">
         <div>
-          <CardTitle>Live Class Series</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl font-bold">Live Class Series</CardTitle>
+          <CardDescription className="mt-1">
             Schedule and manage your recurring live sessions.
           </CardDescription>
         </div>
-        {/* UPDATED: Button uses theme primary color (purple) */}
-        <Link href={createLink} passHref>
-          <Button size="sm">
+        <Link href={createLink} passHref className="mt-4 sm:mt-0 w-full sm:w-auto">
+          <Button size="sm" className="w-full sm:w-auto">
             <Calendar className="h-4 w-4 mr-2" /> Schedule New Series
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="p-6 pt-0">
+
+      <CardContent className="px-4 sm:px-6 py-2 space-y-8">
         {liveClasses.length === 0 ? (
-          // UPDATED: Using new EmptyState component
           <EmptyState
             message="No live class series scheduled for this course."
             linkPath={createLink}
             linkText="Schedule your first series"
           />
         ) : (
-          <>
-            {/* --- NEW: Mobile Card List (Visible on mobile) --- */}
-            <div className="space-y-4 md:hidden">
-              {liveClasses.map((lc) => (
-                <Card key={lc.id} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold text-foreground">{lc.title}</p>
-                    <span className="text-xs text-muted-foreground capitalize">
+          <div className="space-y-4">
+            {liveClasses.map((lc) => (
+              <div
+                key={lc.id}
+                className="flex flex-col md:flex-row md:items-center justify-between p-6 border rounded-xl bg-card gap-6 transition-all hover:border-primary/50"
+              >
+                {/* Info Section */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="font-semibold text-lg text-foreground">{lc.title}</h3>
+                    <Badge 
+                      variant={lc.recurrence_type === 'none' ? "secondary" : "default"} 
+                      className="border-0"
+                    >
                       {formatRecurrence(lc.recurrence_type)}
-                    </span>
+                    </Badge>
                   </div>
-                  <div className="flex justify-between items-end mt-4">
-                    <div className="text-sm text-muted-foreground flex items-center">
-                      <Clock size={14} className="mr-1" /> {lc.lessons_count}{" "}
-                      sessions
-                    </div>
-                    {renderManageButton(lc)}
-                  </div>
-                </Card>
-              ))}
-            </div>
 
-            {/* --- UPDATED: Desktop Table (Hidden on mobile) --- */}
-            <div className="border rounded-lg overflow-hidden hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>Lessons</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {liveClasses.map((lc) => (
-                    <TableRow key={lc.id}>
-                      <TableCell className="font-medium text-foreground">
-                        {lc.title}
-                      </TableCell>
-                      <TableCell className="capitalize text-muted-foreground">
-                        {formatRecurrence(lc.recurrence_type)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(lc.start_date).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="flex items-center text-muted-foreground">
-                        <Clock size={14} className="mr-1" /> {lc.lessons_count}{" "}
-                        sessions
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {renderManageButton(lc)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                        <Calendar size={14} />
+                        <span>Starts {new Date(lc.start_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="hidden sm:block text-muted-foreground/30">•</div>
+                    <div className="flex items-center gap-1.5">
+                        <Clock size={14} />
+                        <span>
+                            {lc.lessons_count} session{lc.lessons_count !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Section */}
+                <div className="pt-2 md:pt-0">
+                  <Button asChild size="sm" variant="secondary" className="w-full md:w-auto shadow-sm">
+                    <Link href={`/courses/${courseSlug}/live-classes/${lc.slug}/manage`}>
+                      <ListVideo size={14} className="mr-2" /> Manage Lessons
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
   );
 };
+
 export default LiveClassManagerTab;

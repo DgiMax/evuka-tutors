@@ -54,7 +54,6 @@ function useNow() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
     setNow(new Date());
-    // Optional: Update every minute to keep buttons active live
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
@@ -72,7 +71,7 @@ export default function ManageLessonsPage() {
   
   const params = useParams();
   const router = useRouter();
-  const now = useNow(); // Safe client-side time
+  const now = useNow();
   
   const class_slug = params.class_slug as string;
 
@@ -81,7 +80,6 @@ export default function ManageLessonsPage() {
     try {
       setLoading(true);
       const response = await api.get(`/live/classes/${class_slug}/`);
-      // Sort by date/time
       response.data.lessons.sort((a: LiveLesson, b: LiveLesson) => 
         combineDateTime(a.date, a.start_time).getTime() - 
         combineDateTime(b.date, b.start_time).getTime()
@@ -145,41 +143,49 @@ export default function ManageLessonsPage() {
     );
   }
 
-  // Filter lessons
   const upcomingLessons = liveClass.lessons.filter(l => !isPast(combineDateTime(l.date, l.end_time)));
   const pastLessons = liveClass.lessons.filter(l => isPast(combineDateTime(l.date, l.end_time)));
 
   return (
     <>
-      <Card className="max-w-5xl mx-auto my-8 border-0 shadow-none">
-        <CardHeader className="px-0 pb-6">
-          <div className="flex justify-between items-start mb-4">
-            <Button variant="ghost" size="sm" className="pl-0 hover:bg-transparent hover:text-primary" onClick={() => router.back()}>
-              <ArrowLeft size={16} className="mr-2" /> Back to Schedules
-            </Button>
-            
-            <Button onClick={() => setIsCreating(true)}>
-              <Plus size={16} className="mr-2" /> Add Lesson
-            </Button>
-          </div>
+      <Card className="max-w-5xl mx-4 sm:mx-auto my-8 p-0 border border-border shadow-none sm:shadow-sm">
+        <CardHeader className="p-6 p-6 bg-muted/10 border-b">
+          <div className="flex flex-col gap-4">
+             <div>
+                <Button variant="ghost" size="sm" className="mb-4 w-fit pl-0 hover:bg-transparent hover:text-primary" onClick={() => router.back()}>
+                    <ArrowLeft size={16} className="mr-2" /> Back to Schedules
+                </Button>
+             </div>
 
-          <CardTitle className="text-2xl">Manage Lessons: {liveClass.title}</CardTitle>
-          <CardDescription>
-            {liveClass.recurrence_type === 'none' 
-              ? "Manage your one-time session details." 
-              : "View, edit, or add lessons to this recurring series."}
-          </CardDescription>
+             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                <div>
+                    <CardTitle className="text-2xl font-bold">{liveClass.title}</CardTitle>
+                    <CardDescription className="mt-1 max-w-2xl">
+                    {liveClass.recurrence_type === 'none' 
+                        ? "Manage your one-time session details." 
+                        : "View, edit, or add lessons to this recurring series."}
+                    </CardDescription>
+                </div>
+                
+                <Button onClick={() => setIsCreating(true)} className="w-full md:w-auto shrink-0">
+                    <Plus size={16} className="mr-2" /> Add Lesson
+                </Button>
+             </div>
+          </div>
         </CardHeader>
 
-        <CardContent className="px-0 space-y-8">
+        <CardContent className="px-4 sm:px-6 py-2 space-y-8">
           {liveClass.lessons.length === 0 ? (
-            <Alert className="bg-muted/50 border-muted">
-              <CalendarOff className="h-4 w-4 text-muted-foreground" />
-              <AlertTitle>No Lessons Scheduled</AlertTitle>
-              <AlertDescription className="mt-2">
+            <Alert className="bg-muted/30 border-dashed border-muted p-8 flex flex-col items-center text-center justify-center">
+              <div className="h-12 w-12 bg-muted rounded-full flex items-center justify-center mb-4">
+                <CalendarOff className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <AlertTitle className="text-lg font-semibold">No Lessons Scheduled</AlertTitle>
+              <AlertDescription className="mt-2 text-muted-foreground max-w-sm mx-auto">
                 This class currently has no lessons. 
-                <Button variant="link" className="px-1 h-auto font-semibold" onClick={() => setIsCreating(true)}>
-                  Click here to add one.
+                <br />
+                <Button variant="link" className="px-1 h-auto font-semibold mt-2" onClick={() => setIsCreating(true)}>
+                   Schedule your first lesson now
                 </Button>
               </AlertDescription>
             </Alert>
@@ -187,64 +193,68 @@ export default function ManageLessonsPage() {
             <>
               {upcomingLessons.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center text-foreground">
+                  <h3 className="text-lg font-semibold flex items-center text-foreground px-1">
                     <Clock size={18} className="mr-2 text-primary" /> Upcoming Lessons
                   </h3>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {upcomingLessons.map((lesson) => {
                       const startTime = combineDateTime(lesson.date, lesson.start_time);
                       
                       let isJoinable = false;
                       if (now) {
-                         const minutesToStart = differenceInMinutes(startTime, now);
-                         // Join allowed: 30 mins before start until 2 hours after start (roughly ongoing)
-                         isJoinable = minutesToStart <= 30 && minutesToStart > -120;
+                          const minutesToStart = differenceInMinutes(startTime, now);
+                          isJoinable = minutesToStart <= 30 && minutesToStart > -120;
                       }
 
                       return (
-                        <div key={lesson.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-xl bg-card gap-4 transition-all hover:border-primary/50">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-foreground">{lesson.title}</h3>
-                              {/* Show Badge if starting soon/ongoing */}
+                        <div key={lesson.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 border rounded-xl bg-card gap-6 transition-all hover:border-primary/50">
+                          {/* Lesson Info */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <h3 className="font-semibold text-base text-foreground">{lesson.title}</h3>
                               {isJoinable && (
-                                <Badge variant="default" className="bg-green-600 hover:bg-green-700 animate-pulse">
+                                <Badge variant="default" className="bg-green-600 hover:bg-green-700 animate-pulse border-0">
                                   {isPast(startTime) ? "Ongoing" : "Starting Soon"}
                                 </Badge>
                               )}
                             </div>
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <Calendar size={14} className="mr-1.5" />
-                              {format(startTime, "EEEE, MMMM d, yyyy")}
-                              <span className="mx-2">•</span>
-                              <Clock size={14} className="mr-1.5" />
-                              {format(startTime, "h:mm a")}
+                            <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-y-1">
+                              <div className="flex items-center">
+                                <Calendar size={14} className="mr-1.5" />
+                                {format(startTime, "EEEE, MMMM d, yyyy")}
+                              </div>
+                              <span className="mx-2 hidden sm:inline">•</span>
+                              <div className="flex items-center w-full sm:w-auto mt-1 sm:mt-0">
+                                <Clock size={14} className="mr-1.5" />
+                                {format(startTime, "h:mm a")}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2 pt-2 md:pt-0">
-                            {/* --- JOIN BUTTON --- */}
+                          {/* Action Buttons - Inline & Compact */}
+                          <div className="flex items-center gap-3 pt-2 md:pt-0 border-t md:border-t-0 mt-2 md:mt-0">
                             {isJoinable && (
                               <Button 
                                 size="sm" 
-                                className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm" 
+                                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm w-auto" 
                                 onClick={() => handleJoin(lesson.id)}
                               >
-                                <Video size={14} className="mr-2" /> Join Now
+                                <Video size={14} className="mr-2" /> Join
                               </Button>
                             )}
-                            {/* ------------------- */}
 
-                            <Button variant="outline" size="sm" className="w-full md:w-auto" onClick={() => setLessonToEdit(lesson)}>
+                            <Button variant="outline" size="sm" className="w-auto" onClick={() => setLessonToEdit(lesson)}>
                               <Edit size={14} className="mr-2" /> Edit
                             </Button>
+                            
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="w-full md:w-auto text-destructive hover:bg-destructive/10" 
+                              className="text-destructive hover:bg-destructive/10 w-auto hover:text-destructive" 
                               onClick={() => setLessonToDelete(lesson)}
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={14} className="mr-2 sm:mr-0" />
+                              <span className="sm:hidden">Delete</span>
                             </Button>
                           </div>
                         </div>
@@ -255,20 +265,20 @@ export default function ManageLessonsPage() {
               )}
 
               {pastLessons.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center text-muted-foreground">
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-lg font-semibold flex items-center text-muted-foreground px-1">
                     <Clock size={18} className="mr-2" /> Past Lessons
                   </h3>
                   <div className="space-y-3">
                     {pastLessons.map((lesson) => (
-                      <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-xl bg-muted/30 opacity-75 gap-2">
+                      <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-xl bg-muted/20 gap-2 opacity-80 hover:opacity-100 transition-opacity">
                         <div>
                           <h3 className="font-medium text-foreground/80">{lesson.title}</h3>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground mt-0.5">
                             {format(combineDateTime(lesson.date, lesson.start_time), "eee, MMM d, yyyy • h:mm a")}
                           </p>
                         </div>
-                        <Badge variant="outline" className="w-fit">Completed</Badge>
+                        <Badge variant="secondary" className="w-fit bg-muted text-muted-foreground border-muted-foreground/20">Completed</Badge>
                       </div>
                     ))}
                   </div>
@@ -279,8 +289,6 @@ export default function ManageLessonsPage() {
         </CardContent>
       </Card>
 
-      {/* --- Modals --- */}
-      {/* Ensure LessonCreateModal is imported and created based on my previous response */}
       <LessonCreateModal
         isOpen={isCreating}
         onClose={() => setIsCreating(false)}
