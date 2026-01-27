@@ -9,7 +9,9 @@ interface GlobalLayoutProps {
 export default async function GlobalLayout({ children }: GlobalLayoutProps) {
   return (
     <ProtectedRoute>
-      <GlobalUILayout slug={null}>{children}</GlobalUILayout>
+      <GlobalUILayout slug={null}>
+        {children}
+      </GlobalUILayout>
     </ProtectedRoute>
   );
 }

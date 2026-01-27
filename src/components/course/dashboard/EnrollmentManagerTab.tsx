@@ -126,14 +126,16 @@ const EnrollmentManagerTab: React.FC<EnrollmentTabProps> = ({
   );
 
   return (
-    <Card className="p-0">
-      <CardHeader className="p-6">
-        <CardTitle>Enrolled Students ({enrollments.length})</CardTitle>
-        <CardDescription>
-          Manage student roles and enrollment status.
-        </CardDescription>
+    <Card className="border border-border shadow-none p-3 md:p-6 rounded-t-md rounded-b-lg">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-0 gap-4">
+        <div className="space-y-1">
+          <CardTitle>Enrolled Students ({enrollments.length})</CardTitle>
+          <CardDescription>
+            Manage student roles and enrollment status.
+          </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="p-6 pt-0">
+      <CardContent className="px-0">
         {enrollments.length === 0 ? (
           <EmptyState message="No students are enrolled in this course yet." />
         ) : (

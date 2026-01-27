@@ -1,39 +1,53 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link"; // Import Link
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api/axios";
 import { 
     Loader2, 
     UserPlus, 
-    MoreVertical, 
+    MoreHorizontal, 
     Trash2, 
-    ExternalLink, // New Icon
-    AlertTriangle, 
-    Mail, 
-    Shield 
+    Check,
+    X,
+    Clock,
+    Users,
+    Mail,
+    AlertCircle,
+    Shield,
+    Ban
 } from "lucide-react";
+
+// UI Components
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { 
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // --- Types ---
+
 interface TeamMember {
     id: number;
-    user?: {
+    user: {
         id: number;
         username: string;
         email: string;
@@ -44,365 +58,554 @@ interface TeamMember {
     date_joined: string;
 }
 
-interface AuthOrg {
-    organization_slug: string;
-    organization_name?: string;
-    role?: string;
+interface JoinRequest {
+    id: number;
+    user: {
+        id: number;
+        username: string;
+        email: string;
+        full_name?: string;
+    };
+    desired_role: string;
+    proposed_commission: number;
+    status: string;
+    created_at: string;
 }
 
-// --- UTILS ---
-const getRoleBadge = (role: string) => {
-    switch(role) {
-        case 'owner': return <Badge className="bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-200">Owner</Badge>;
-        case 'admin': return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200">Admin</Badge>;
-        default: return <Badge variant="outline" className="capitalize">{role}</Badge>;
-    }
+interface SentInvitation {
+    id: number;
+    email: string;
+    gov_role: string;
+    gov_status: string;
+    is_tutor_invite: boolean;
+    tutor_commission: number;
+    tutor_status: string;
+    created_at: string;
+}
+
+// --- Helper Components ---
+
+const RoleBadge = ({ role }: { role: string }) => {
+    const styles: Record<string, string> = {
+        owner: "bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-100",
+        admin: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100",
+        tutor: "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-50",
+        member: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+    };
+    return (
+        <Badge variant="outline" className={`capitalize font-medium shadow-none ${styles[role] || ""}`}>
+            {role}
+        </Badge>
+    );
 };
 
-const getStatusBadge = (isActive: boolean) => (
-    <Badge className={isActive ? "bg-green-100 text-green-700 hover:bg-green-200 border-green-200" : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-200"}>
-        {isActive ? "Active" : "Pending"}
-    </Badge>
+const StatusBadge = ({ status, active }: { status?: string; active?: boolean }) => {
+    if (active !== undefined) {
+        return active ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 shadow-none gap-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-green-600" /> Active
+            </Badge>
+        ) : (
+            <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 shadow-none">
+                Inactive
+            </Badge>
+        );
+    }
+    
+    // String status
+    const s = status?.toLowerCase();
+    let style = "bg-slate-50 text-slate-600 border-slate-200";
+    if (s === 'pending') style = "bg-amber-50 text-amber-700 border-amber-200";
+    if (s === 'rejected' || s === 'revoked') style = "bg-red-50 text-red-700 border-red-200";
+    if (s === 'accepted' || s === 'approved') style = "bg-green-50 text-green-700 border-green-200";
+
+    return <Badge variant="outline" className={`capitalize shadow-none ${style}`}>{status}</Badge>;
+};
+
+const EmptyState = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="bg-muted/50 p-4 rounded-full mb-4">
+            <Icon className="h-8 w-8 text-muted-foreground/60" />
+        </div>
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">{description}</p>
+    </div>
 );
 
-// --- MODALS AND INTERFACES ---
-interface InviteDialogProps {
-    isOpen: boolean;
-    onOpenChange: (open: boolean) => void;
-    onSuccess: () => void;
-    activeSlug: string | null;
-}
+// --- Main Page Component ---
 
-interface ConfirmRemoveModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
-    title: string;
-    description: string;
-    isLoading: boolean;
-}
-
-function ConfirmRemoveModal({ isOpen, onClose, onConfirm, title, description, isLoading }: ConfirmRemoveModalProps) {
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md p-0 top-[15%] translate-y-0 gap-0">
-                <div className="p-4 border-b bg-muted/40 rounded-t-lg flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div>
-                        <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
-                        <DialogDescription className="text-xs mt-0.5">This action cannot be undone.</DialogDescription>
-                    </div>
-                </div>
-                <div className="p-6">
-                    <p className="text-sm text-foreground/80 leading-relaxed">{description}</p>
-                </div>
-                <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end gap-3">
-                    <Button variant="outline" onClick={onClose} disabled={isLoading} className="h-9">Cancel</Button>
-                    <Button variant="destructive" onClick={onConfirm} disabled={isLoading} className="h-9">
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirm Remove
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-// --- MAIN COMPONENT ---
 export default function OrgTeamClient() {
-    const { activeSlug } = useActiveOrg();
-    const { user: currentUser } = useAuth();
-    const [members, setMembers] = useState<TeamMember[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isInviteOpen, setIsInviteOpen] = useState(false);
-    
-    const [memberToRemove, setMemberToRemove] = useState<TeamMember | null>(null);
-    const [isRemoving, setIsRemoving] = useState(false);
+    const { activeSlug, activeRole } = useActiveOrg();
+    const isAdmin = activeRole === 'owner' || activeRole === 'admin';
 
-    const currentOrgMembership = currentUser?.organizations?.find(
-        (org: AuthOrg) => org.organization_slug === activeSlug
-    );
-    const isAdmin = currentOrgMembership?.role === 'admin' || currentOrgMembership?.role === 'owner';
-
-    const fetchMembers = async () => {
-        if (!activeSlug) return;
-        try {
-            setIsLoading(true);
-            const res = await api.get("/organizations/team/", {
-                headers: { 'X-Organization-Slug': activeSlug }
-            });
-            setMembers(Array.isArray(res.data) ? res.data : res.data.results);
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to load team members.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchMembers();
-    }, [activeSlug]);
-
-    const handleRemoveMember = async () => {
-        if (!memberToRemove) return;
-        setIsRemoving(true);
-        try {
-             await api.delete(`/organizations/team/${memberToRemove.id}/`, {
-                headers: { 'X-Organization-Slug': activeSlug }
-            });
-            toast.success("Member removed successfully.");
-            setMembers(prev => prev.filter(m => m.id !== memberToRemove.id));
-            setMemberToRemove(null);
-        } catch (error) {
-            toast.error("Failed to remove member.");
-        } finally {
-            setIsRemoving(false);
-        }
-    }
-
-    // --- Action Menu Component ---
-    const ActionMenu = ({ member }: { member: TeamMember }) => {
-        const isSelf = member.user?.id === currentUser?.id;
-        const isTargetOwner = member.role === 'owner';
-        
-        // Show menu if:
-        // 1. You are Admin/Owner AND target isn't Owner AND target isn't Self (for Remove action)
-        // 2. OR if the member has a username (for View Profile action)
-        const canRemove = isAdmin && !isTargetOwner && !isSelf;
-        const canViewProfile = !!member.user?.username;
-
-        if (!canRemove && !canViewProfile) return null;
-        
-        return (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 p-0 bg-transparent hover:bg-transparent active:bg-transparent focus-visible:ring-0 border-0 shadow-none data-[state=open]:bg-transparent">
-                        <MoreVertical className="h-5 w-5 text-muted-foreground transition-colors mx-auto" />
-                    </Button>
-
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    {canViewProfile && (
-                        <DropdownMenuItem asChild>
-                            <Link 
-                                href={`${process.env.NEXT_PUBLIC_API_URL}/tutor-profile/${member.user?.username}`} 
-                                target="_blank" 
-                                className="cursor-pointer flex items-center w-full"
-                            >
-                                <ExternalLink className="mr-2 h-4 w-4 text-muted-foreground" /> 
-                                View Public Profile
-                            </Link>
-                        </DropdownMenuItem>
-                    )}
-
-                    {canRemove && canViewProfile && <DropdownMenuSeparator />}
-
-                    {canRemove && (
-                        <DropdownMenuItem 
-                            className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer" 
-                            onClick={() => setMemberToRemove(member)}
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" /> Remove from Org
-                        </DropdownMenuItem>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        );
-    };
-
-    if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>;
+    // Prevent rendering without context
+    if (!activeSlug) return null; 
 
     return (
-        <div className="container mx-auto p-4 md:p-6 max-w-5xl">
-             <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-                    <p className="text-muted-foreground text-sm">Manage access and roles for your organization.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Team & Access</h1>
+                    <p className="text-muted-foreground mt-1">Manage team members, roles, and pending invitations.</p>
                 </div>
                 {isAdmin && (
-                    <InviteDialog
-                        isOpen={isInviteOpen}
-                        onOpenChange={setIsInviteOpen}
-                        onSuccess={fetchMembers}
-                        activeSlug={activeSlug}
-                    />
+                    <InviteMemberModal activeSlug={activeSlug} onSuccess={() => window.location.reload()} />
                 )}
             </div>
 
-            {/* Mobile Card List */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
-                {members.map(member => (
-                    <Card key={member.id} className="p-4">
-                        <div className="flex justify-between items-start">
-                            <div className="flex gap-3">
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
-                                    {member.user?.full_name?.charAt(0) || member.user?.username?.charAt(0) || "?"}
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-semibold text-foreground truncate">{member.user?.full_name || member.user?.username || "Unknown"}</p>
-                                    <p className="text-xs text-muted-foreground break-all">{member.user?.email}</p>
-                                </div>
-                            </div>
-                            <ActionMenu member={member} />
-                        </div>
-                        
-                        <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                            <div className="flex gap-2">
-                                {getRoleBadge(member.role)}
-                                {getStatusBadge(member.is_active)}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                                Joined {new Date(member.date_joined).toLocaleDateString()}
-                            </span>
-                        </div>
-                    </Card>
-                ))}
-            </div>
+            {/* Tabs & Content */}
+            <Tabs defaultValue="members" className="w-full space-y-6">
+                <div className="w-full overflow-x-auto pb-2">
+                    <TabsList className="h-auto p-1 bg-muted/50 rounded-lg inline-flex">
+                        <TabsTrigger value="members" className="px-4 py-2 text-sm font-medium gap-2">
+                            <Users className="h-4 w-4" /> Active Team
+                        </TabsTrigger>
+                        {isAdmin && (
+                            <>
+                                <TabsTrigger value="requests" className="px-4 py-2 text-sm font-medium gap-2">
+                                    <Clock className="h-4 w-4" /> Join Requests
+                                </TabsTrigger>
+                                <TabsTrigger value="invitations" className="px-4 py-2 text-sm font-medium gap-2">
+                                    <Mail className="h-4 w-4" /> Sent Invitations
+                                </TabsTrigger>
+                            </>
+                        )}
+                    </TabsList>
+                </div>
 
-            {/* Desktop Table */}
-            <div className="rounded-lg border bg-card shadow-sm overflow-hidden hidden md:block">
+                <TabsContent value="members" className="mt-0">
+                    <MembersTab activeSlug={activeSlug} isAdmin={isAdmin} />
+                </TabsContent>
+
+                {isAdmin && (
+                    <>
+                        <TabsContent value="requests" className="mt-0">
+                            <RequestsTab activeSlug={activeSlug} />
+                        </TabsContent>
+                        <TabsContent value="invitations" className="mt-0">
+                            <InvitationsTab activeSlug={activeSlug} />
+                        </TabsContent>
+                    </>
+                )}
+            </Tabs>
+        </div>
+    );
+}
+
+// --- Tab Components ---
+
+function MembersTab({ activeSlug, isAdmin }: { activeSlug: string, isAdmin: boolean }) {
+    const [members, setMembers] = useState<TeamMember[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { user: currentUser } = useAuth();
+
+    const fetchMembers = async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get("/organizations/team/", { 
+                headers: { 'X-Organization-Slug': activeSlug } 
+            });
+            setMembers(Array.isArray(data) ? data : data.results);
+        } catch (e) {
+            toast.error("Failed to load members.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchMembers(); }, [activeSlug]);
+
+    const handleRemove = async (id: number) => {
+        try {
+            await api.delete(`/organizations/team/${id}/`, { 
+                headers: { 'X-Organization-Slug': activeSlug } 
+            });
+            toast.success("Member removed successfully.");
+            setMembers(prev => prev.filter(m => m.id !== id));
+        } catch (e) {
+            toast.error("Failed to remove member.");
+        }
+    };
+
+    if (loading) {
+        return (
+            <Card className="border shadow-sm min-h-[300px] flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </Card>
+        );
+    }
+
+    if (members.length === 0) {
+        return (
+            <Card className="border shadow-sm">
+                <CardContent className="pt-6">
+                    <EmptyState icon={Users} title="No Active Members" description="You haven't added anyone to your team yet." />
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="border shadow-sm bg-card">
+            <CardHeader className="border-b px-6 py-4">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" /> Active Personnel
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
                 <Table>
                     <TableHeader>
-                        <TableRow className="bg-muted/50">
-                            <TableHead>User</TableHead>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableHead className="pl-6 w-[350px]">User Details</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead>Joined</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead>Date Joined</TableHead>
+                            <TableHead className="text-right pr-6">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {members.map((member) => (
-                            <TableRow key={member.id}>
-                                <TableCell>
+                        {members.map((m) => (
+                            <TableRow key={m.id} className="hover:bg-muted/5">
+                                <TableCell className="pl-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                                            {member.user?.full_name?.charAt(0) || "?"}
-                                        </div>
+                                        <Avatar className="h-9 w-9 border">
+                                            <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                                {m.user?.username?.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
                                         <div className="flex flex-col">
-                                            <span className="font-medium text-foreground">
-                                                {member.user?.full_name || member.user?.username || "Unknown"}
+                                            <span className="font-medium text-sm text-foreground">
+                                                {m.user?.full_name || m.user?.username}
                                             </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {member.user?.email || "No email"}
-                                            </span>
+                                            <span className="text-xs text-muted-foreground">{m.user?.email}</span>
                                         </div>
                                     </div>
                                 </TableCell>
-                                <TableCell>{getRoleBadge(member.role)}</TableCell>
-                                <TableCell>{getStatusBadge(member.is_active)}</TableCell>
+                                <TableCell><RoleBadge role={m.role} /></TableCell>
+                                <TableCell><StatusBadge active={m.is_active} /></TableCell>
                                 <TableCell className="text-muted-foreground text-sm">
-                                    {new Date(member.date_joined).toLocaleDateString()}
+                                    {new Date(m.date_joined).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                    <ActionMenu member={member} />
+                                <TableCell className="text-right pr-6">
+                                    {(isAdmin && m.user?.id !== currentUser?.id && m.role !== 'owner') ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                                    <MoreHorizontal className="h-4 w-4"/>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleRemove(m.id)}>
+                                                    <Trash2 className="mr-2 h-4 w-4"/> Remove Access
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground italic px-2">No actions</span>
+                                    )}
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
-            </div>
-
-            <ConfirmRemoveModal 
-                isOpen={!!memberToRemove}
-                onClose={() => setMemberToRemove(null)}
-                onConfirm={handleRemoveMember}
-                title="Remove Team Member"
-                description={`Are you sure you want to remove ${memberToRemove?.user?.full_name || 'this user'}? They will lose access immediately.`}
-                isLoading={isRemoving}
-            />
-        </div>
+            </CardContent>
+        </Card>
     );
 }
 
-// --- INVITE DIALOG ---
-function InviteDialog({ isOpen, onOpenChange, onSuccess, activeSlug }: InviteDialogProps) {
+function RequestsTab({ activeSlug }: { activeSlug: string }) {
+    const [requests, setRequests] = useState<JoinRequest[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [actionId, setActionId] = useState<number | null>(null);
+
+    const fetchRequests = async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get("/community/manage/requests/", { headers: { 'X-Organization-Slug': activeSlug } });
+            setRequests(data.results || data);
+        } catch { toast.error("Error loading requests"); } finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchRequests(); }, [activeSlug]);
+
+    const handleAction = async (id: number, type: 'approve' | 'reject') => {
+        setActionId(id);
+        try {
+            await api.post(`/community/manage/requests/${id}/${type}/`, {}, { headers: { 'X-Organization-Slug': activeSlug } });
+            toast.success(`Request ${type}ed successfully.`);
+            setRequests(prev => prev.filter(r => r.id !== id));
+        } catch {
+            toast.error("Action failed.");
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    if (loading) return <Card className="border shadow-sm min-h-[200px] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></Card>;
+    
+    if (requests.length === 0) {
+        return (
+            <Card className="border shadow-sm">
+                <CardContent className="pt-6">
+                    <EmptyState icon={Clock} title="No Pending Requests" description="There are no pending join requests at the moment." />
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="border shadow-sm">
+            <CardHeader className="border-b px-6 py-4">
+                <CardTitle className="text-base font-semibold">Incoming Requests</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/30">
+                            <TableHead className="pl-6">Applicant</TableHead>
+                            <TableHead>Desired Role</TableHead>
+                            <TableHead>Proposed Rate</TableHead>
+                            <TableHead>Requested On</TableHead>
+                            <TableHead className="text-right pr-6">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {requests.map((r) => (
+                            <TableRow key={r.id}>
+                                <TableCell className="pl-6 py-4 font-medium">
+                                    <div className="flex flex-col">
+                                        <span>{r.user.full_name || r.user.username}</span>
+                                        <span className="text-xs text-muted-foreground">{r.user.email}</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell><RoleBadge role={r.desired_role} /></TableCell>
+                                <TableCell>
+                                    {r.desired_role === 'tutor' ? (
+                                        <Badge variant="secondary" className="font-mono bg-muted">{r.proposed_commission}% Comm</Badge>
+                                    ) : <span className="text-muted-foreground">-</span>}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                                <TableCell className="text-right pr-6">
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="outline" className="h-8 border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => handleAction(r.id, 'reject')} disabled={!!actionId}>
+                                            Reject
+                                        </Button>
+                                        <Button size="sm" className="h-8 gap-1 bg-green-600 hover:bg-green-700 text-white" onClick={() => handleAction(r.id, 'approve')} disabled={!!actionId}>
+                                            {actionId === r.id ? <Loader2 className="h-3 w-3 animate-spin"/> : <Check className="h-3 w-3"/>}
+                                            Approve
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+function InvitationsTab({ activeSlug }: { activeSlug: string }) {
+    const [invites, setInvites] = useState<SentInvitation[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [revoking, setRevoking] = useState<number | null>(null);
+
+    const fetchInvites = async () => {
+        try {
+            setLoading(true);
+            const { data } = await api.get("/community/manage/invitations/", { headers: { 'X-Organization-Slug': activeSlug } });
+            setInvites(data.results || data);
+        } catch { toast.error("Error loading invitations"); } finally { setLoading(false); }
+    };
+
+    useEffect(() => { fetchInvites(); }, [activeSlug]);
+
+    const handleRevoke = async (id: number) => {
+        setRevoking(id);
+        try {
+            await api.post(`/community/manage/invitations/${id}/revoke/`, {}, { headers: { 'X-Organization-Slug': activeSlug } });
+            toast.success("Invitation revoked");
+            setInvites(prev => prev.filter(i => i.id !== id));
+        } catch { toast.error("Failed to revoke"); } finally { setRevoking(null); }
+    };
+
+    if (loading) return <Card className="border shadow-sm min-h-[200px] flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></Card>;
+    
+    if (invites.length === 0) {
+        return (
+            <Card className="border shadow-sm">
+                <CardContent className="pt-6">
+                    <EmptyState icon={Mail} title="No Sent Invitations" description="You haven't sent any invitations recently." />
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="border shadow-sm">
+            <CardHeader className="border-b px-6 py-4">
+                <CardTitle className="text-base font-semibold">Sent Invitations</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow className="bg-muted/30">
+                            <TableHead className="pl-6">Invited Email</TableHead>
+                            <TableHead>Configured Roles</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right pr-6">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {invites.map((inv) => (
+                            <TableRow key={inv.id}>
+                                <TableCell className="pl-6 font-medium text-foreground">{inv.email}</TableCell>
+                                <TableCell>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Badge variant="secondary" className="text-[10px] uppercase">
+                                            {inv.gov_role}
+                                        </Badge>
+                                        {inv.is_tutor_invite && (
+                                            <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-200">
+                                                TUTOR ({inv.tutor_commission}%)
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <StatusBadge status={inv.gov_status} />
+                                </TableCell>
+                                <TableCell className="text-right pr-6">
+                                    <Button size="sm" variant="ghost" className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleRevoke(inv.id)} disabled={!!revoking}>
+                                        {revoking === inv.id ? <Loader2 className="h-3 w-3 animate-spin"/> : "Revoke"}
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+// --- Invite Modal ---
+
+function InviteMemberModal({ activeSlug, onSuccess }: { activeSlug: string, onSuccess: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState("");
-    const [role, setRole] = useState("tutor");
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [govRole, setGovRole] = useState("member");
+    const [isTutor, setIsTutor] = useState(true);
+    const [commission, setCommission] = useState([70]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        if (!activeSlug) {
-             toast.error("No organization selected.");
-             setIsSubmitting(false);
-             return;
-        }
-
+        setLoading(true);
         try {
-            await api.post("/organizations/team/invite/", { email, role }, {
-                 headers: { 'X-Organization-Slug': activeSlug }
-            });
-            toast.success("Invitation sent successfully!");
-            onOpenChange(false);
-            setEmail("");
+            await api.post("/community/invitations/", {
+                email,
+                gov_role: govRole,
+                is_tutor_invite: isTutor,
+                tutor_commission: isTutor ? commission[0] : null
+            }, { headers: { 'X-Organization-Slug': activeSlug } });
+            
+            toast.success("Invitation sent successfully");
+            setOpen(false);
             onSuccess();
+            setEmail("");
+            setIsTutor(true);
+            setCommission([70]);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Failed to send invitation.");
+            toast.error(error.response?.data?.detail || "Failed to invite user");
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>
-                    <UserPlus className="mr-2 h-4 w-4" /> Invite Member
+                <Button className="shadow-sm">
+                    <UserPlus className="h-4 w-4 mr-2" /> Invite Member
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md p-0 top-[15%] translate-y-0 gap-0">
-                <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
-                    <DialogTitle>Invite New Member</DialogTitle>
-                    <DialogDescription className="mt-1 text-xs">Send an email invitation to join your team.</DialogDescription>
-                </div>
-                
-                <div className="p-6">
-                    <form id="invite-form" onSubmit={handleSubmit} className="space-y-4">
+            <DialogContent className="sm:max-w-[500px] border-border shadow-lg">
+                <DialogHeader>
+                    <DialogTitle>Invite New Team Member</DialogTitle>
+                    <DialogDescription>
+                        Configure role access and financial terms for the new member.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+                    <div className="space-y-2">
+                        <Label>Email Address</Label>
+                        <Input 
+                            required 
+                            type="email" 
+                            placeholder="colleague@example.com" 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="bg-background"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email Address</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="pl-9"
-                                    placeholder="colleague@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="role">Role</Label>
-                            <Select value={role} onValueChange={setRole}>
-                                <SelectTrigger>
-                                    <div className="flex items-center gap-2">
-                                        <Shield className="h-4 w-4 text-muted-foreground" />
-                                        <SelectValue />
-                                    </div>
+                            <Label>Governance Role</Label>
+                            <Select value={govRole} onValueChange={setGovRole}>
+                                <SelectTrigger className="bg-background">
+                                    <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="tutor">Tutor</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="member">Member (Read Only)</SelectItem>
+                                    <SelectItem value="admin">Administrator</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <p className="text-[10px] text-muted-foreground">Admin access level.</p>
                         </div>
-                    </form>
-                </div>
 
-                <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end gap-3">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9">Cancel</Button>
-                    <Button type="submit" form="invite-form" disabled={isSubmitting} className="h-9">
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Send Invite
-                    </Button>
-                </div>
+                        <div className="space-y-2 border rounded-md p-3 bg-muted/20">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="tutor-switch" className="cursor-pointer font-medium">Teaching Access</Label>
+                                <Switch id="tutor-switch" checked={isTutor} onCheckedChange={setIsTutor} />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Can create courses?</p>
+                        </div>
+                    </div>
+
+                    {isTutor && (
+                        <div className="space-y-4 pt-4 border-t">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-sm font-semibold">Tutor Commission Rate</Label>
+                                <Badge variant="secondary" className="text-base font-mono">{commission[0]}%</Badge>
+                            </div>
+                            <Slider 
+                                value={commission} 
+                                onValueChange={setCommission} 
+                                max={100} 
+                                min={10} 
+                                step={5} 
+                                className="w-full"
+                            />
+                            <div className="flex justify-between text-xs text-muted-foreground bg-muted/30 p-2 rounded">
+                                <span>Org keeps: <b>{100 - commission[0]}%</b></span>
+                                <span>Tutor gets: <b>{commission[0]}%</b></span>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={loading}>
+                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Mail className="mr-2 h-4 w-4" />}
+                            Send Invitation
+                        </Button>
+                    </DialogFooter>
+                </form>
             </DialogContent>
         </Dialog>
-    )
+    );
 }

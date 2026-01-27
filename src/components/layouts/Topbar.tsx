@@ -11,16 +11,12 @@ type TopNavProps = {
 
 export default function TopNav({ isSidebarOpen, setIsSidebarOpen }: TopNavProps) {
   return (
-    // UPDATED: Themed with bg-background and border-border
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between bg-background border-b border-border h-14 px-4">
       
-      {/* LEFT: Burger + Logo */}
       <div className="flex items-center gap-3">
-        {/* UPDATED: Themed button */}
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          // UPDATED: Removed all hover, focus, and background styles
-          className="p-2 text-foreground rounded-md focus:outline-none focus:ring-0"
+          className="p-2 text-foreground rounded-md focus:outline-none hover:bg-muted transition-colors"
         >
           {isSidebarOpen ? (
             <X className="h-5 w-5" />
@@ -31,7 +27,7 @@ export default function TopNav({ isSidebarOpen, setIsSidebarOpen }: TopNavProps)
 
         <div className="flex items-center gap-2">
           <Image
-            src="/logo.png" // Assuming /logo.png is in your /public folder
+            src="/logo.png" 
             alt="Logo"
             width={100}
             height={24}

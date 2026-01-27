@@ -16,7 +16,7 @@ import {
   FileIcon,
   Download,
   Calendar,
-  User
+  User, X,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -51,7 +51,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -109,12 +109,14 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
   ];
 
   return (
-    <Card className="p-0">
-      <CardHeader className="p-6">
-        <CardTitle>Assessments Management</CardTitle>
-        <CardDescription>Review and grade student work.</CardDescription>
+    <Card className="border border-border shadow-none p-3 md:p-6 rounded-t-md rounded-b-lg">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-0 gap-4">
+        <div className="space-y-1">
+          <CardTitle>Assessments Management</CardTitle>
+          <CardDescription>Review and grade student work.</CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="p-6 pt-0">
+      <CardContent className="px-0">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           
           {/* Mobile Tab Selector */}
@@ -145,11 +147,11 @@ const AssessmentsManagerTab: React.FC<AssessmentsTabProps> = ({
             ))}
           </TabsList>
 
-          <TabsContent value="assignments" className="mt-4">
+          <TabsContent value="assignments" className="mt-2">
             <AssignmentSubmissionsList courseSlug={courseSlug} />
           </TabsContent>
 
-          <TabsContent value="quizzes" className="mt-4">
+          <TabsContent value="quizzes" className="mt-2">
             <QuizAttemptsReviewList courseSlug={courseSlug} />
           </TabsContent>
         </Tabs>
@@ -361,7 +363,6 @@ const QuizAttemptsReviewList: React.FC<{ courseSlug: string }> = ({ courseSlug }
   );
 };
 
-// --- GRADE DIALOG COMPONENT (STYLED) ---
 const GradeSubmissionDialog: React.FC<{
   submission: any;
   courseSlug: string;
@@ -402,23 +403,26 @@ const GradeSubmissionDialog: React.FC<{
   };
 
   return (
-    <DialogContent className="sm:max-w-xl p-0 top-[10%] translate-y-0 max-h-[85vh] flex flex-col gap-0">
+    <DialogContent className="w-[95%] sm:max-w-xl p-0 gap-0 max-h-[85vh] h-auto min-h-[300px] flex flex-col border-border/80 shadow-2xl rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[10%] translate-y-0">
       
-      {/* Gray Header */}
-      <div className="p-4 border-b bg-muted/40 rounded-t-lg shrink-0">
-        <DialogTitle>Grade Submission</DialogTitle>
-        <div className="flex justify-between items-center mt-1 text-sm text-muted-foreground">
-            <span>Student: <span className="font-medium text-foreground">{submission.user.full_name}</span></span>
-            <span className="text-xs bg-muted px-2 py-0.5 rounded">
-                Max Score: {submission.assignment.max_score || 100}
-            </span>
+      <DialogHeader className="px-6 py-2 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+        <div className="flex flex-col gap-0.5">
+            <DialogTitle className="text-lg font-semibold tracking-tight text-foreground">
+                Grade Submission
+            </DialogTitle>
+            <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <span className="font-medium text-foreground/80">{submission.user.full_name}</span>
+                <span className="text-muted-foreground/30">•</span>
+                <span>Max Score: {submission.assignment.max_score || 100}</span>
+            </div>
         </div>
-      </div>
+        <DialogClose className="rounded-md p-2 hover:bg-muted transition" onClick={onClose}>
+            <X className="h-6 w-6 text-muted-foreground hover:text-foreground" />
+        </DialogClose>
+      </DialogHeader>
 
-      {/* Scrollable Body */}
-      <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto min-h-0 px-6 py-6 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:border-x-[1px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content">
         
-        {/* Student Work Section */}
         <div className="space-y-3">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Student Work</h4>
             
@@ -454,7 +458,6 @@ const GradeSubmissionDialog: React.FC<{
             )}
         </div>
 
-        {/* Grading Form */}
         <div className="space-y-3 pt-4 border-t">
             <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Instructor Assessment</h4>
             <Form {...gradeForm}>
@@ -462,7 +465,7 @@ const GradeSubmissionDialog: React.FC<{
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField control={gradeForm.control} name="grade" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Grade</FormLabel>
+                                <FormLabel className="text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Grade</FormLabel>
                                 <FormControl>
                                     <ShadcnInput 
                                         type="number" 
@@ -471,6 +474,7 @@ const GradeSubmissionDialog: React.FC<{
                                         {...field} 
                                         value={field.value ?? ""} 
                                         onChange={e => field.onChange(e.target.value === "" ? null : Number(e.target.value))} 
+                                        className="h-10 text-base shadow-none"
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -478,9 +482,13 @@ const GradeSubmissionDialog: React.FC<{
                         )} />
                         <FormField control={gradeForm.control} name="submission_status" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Status</FormLabel>
+                                <FormLabel className="text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Status</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <FormControl>
+                                        <SelectTrigger className="h-10 text-base shadow-none">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
                                     <SelectContent>
                                         <SelectItem value="pending">Pending Review</SelectItem>
                                         <SelectItem value="graded">Graded (Complete)</SelectItem>
@@ -493,9 +501,9 @@ const GradeSubmissionDialog: React.FC<{
                     </div>
                     <FormField control={gradeForm.control} name="feedback" render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Feedback</FormLabel>
+                            <FormLabel className="text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Feedback</FormLabel>
                             <FormControl>
-                                <Textarea placeholder="Provide constructive feedback..." rows={4} {...field} value={field.value ?? ""} className="resize-none" />
+                                <Textarea placeholder="Provide constructive feedback..." rows={4} {...field} value={field.value ?? ""} className="resize-none text-base shadow-none" />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -505,9 +513,8 @@ const GradeSubmissionDialog: React.FC<{
         </div>
       </div>
 
-      {/* Gray Footer */}
-      <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end shrink-0">
-        <Button type="submit" form="grade-form" disabled={isPending} className="w-full sm:w-auto">
+      <div className="px-6 py-3 border-t bg-background flex justify-end shrink-0 mt-auto">
+        <Button type="submit" form="grade-form" disabled={isPending} className="w-full sm:w-auto h-10 shadow-sm transition-all active:scale-[0.98]">
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
             Save Grade & Feedback
         </Button>

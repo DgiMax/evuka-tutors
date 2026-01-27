@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import api from "@/lib/api/axios";
-import { Loader2, CalendarDays, Plus, Search } from "lucide-react";
+import { Loader2, CalendarDays, Plus, Search, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -17,9 +19,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle } from "lucide-react"; // Added for error state
 
-// --- NEW: Reusable Empty State component (themed) ---
+const EventSkeleton = () => (
+  <div className="flex flex-col sm:flex-row border border-border p-0 rounded-md h-[200px] sm:h-36 overflow-hidden">
+    <div className="w-full h-32 sm:w-32 sm:h-full flex-shrink-0">
+      <Skeleton height="100%" borderRadius="0px" />
+    </div>
+    <div className="flex flex-col justify-between flex-1 p-4">
+      <div>
+        <Skeleton width="50%" height={16} />
+        <Skeleton width="30%" height={12} className="mt-1" />
+        <div className="mt-2">
+          <Skeleton count={2} height={10} />
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-2">
+        <Skeleton width={60} height={18} borderRadius={10} />
+        <div className="flex gap-2">
+          <Skeleton width={50} height={28} />
+          <Skeleton width={28} height={28} />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const EmptyState: React.FC<{
   message: string;
   linkPath?: string;
@@ -53,7 +77,6 @@ export default function TutorEventsClient() {
       try {
         const params = new URLSearchParams();
         params.append("view", "manage");
-
         if (debouncedSearchTerm) params.append("search", debouncedSearchTerm);
         if (statusFilter !== "all") params.append("status", statusFilter);
 
@@ -61,7 +84,6 @@ export default function TutorEventsClient() {
         const data = Array.isArray(res.data) ? res.data : res.data.results || [];
         setEvents(data);
       } catch (err) {
-        console.error("Error loading tutor/admin events:", err);
         setError("Failed to load your events.");
         toast.error("Failed to load your events.");
       } finally {
@@ -79,25 +101,14 @@ export default function TutorEventsClient() {
   };
 
   const createEventHref = activeSlug
-    ? `/${activeSlug}/create-event`
-    : "/create-event";
+    ? `/${activeSlug}/events/create`
+    : "/events/create";
 
   const isDefaultView = statusFilter === "all" && searchTerm === "";
 
-  if (isLoading && !events.length) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen">
-        {/* UPDATED: Themed loader */}
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading events...</p>
-      </div>
-    );
-  }
-
   if (error) {
     return (
-      // UPDATED: Themed error state
-      <div className="flex flex-col items-center justify-center h-60 text-destructive container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8">
+      <div className="flex flex-col items-center justify-center h-60 text-destructive container mx-auto px-4 py-8">
         <AlertTriangle className="h-8 w-8" />
         <p className="mt-2 font-medium">{error}</p>
         <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
@@ -108,23 +119,15 @@ export default function TutorEventsClient() {
   }
 
   return (
-    // UPDATED: Standardized padding
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      {/* Header / Toolbar */}
       <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Title */}
-        {/* UPDATED: Themed text */}
         <h2 className="text-2xl font-semibold text-foreground self-start md:self-center">
           My Events
         </h2>
 
-        {/* Controls */}
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          {/* Search Input */}
           <div className="relative w-full sm:w-64">
-            {/* UPDATED: Themed icon */}
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            {/* UPDATED: Removed bg-white and rounded */}
             <Input
               placeholder="Search events..."
               className="pl-10"
@@ -133,9 +136,7 @@ export default function TutorEventsClient() {
             />
           </div>
 
-          {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            {/* UPDATED: Removed bg-white and rounded */}
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
@@ -150,8 +151,6 @@ export default function TutorEventsClient() {
             </SelectContent>
           </Select>
 
-          {/* New Event Button */}
-          {/* UPDATED: Removed rounded, will use theme default */}
           <Button asChild className="w-full sm:w-auto">
             <Link href={createEventHref} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -161,9 +160,11 @@ export default function TutorEventsClient() {
         </div>
       </div>
 
-      {/* Content or Empty State */}
-      {!events.length ? (
-        // UPDATED: Using new EmptyState component
+      {isLoading && !events.length ? (
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          {[...Array(4)].map((_, i) => <EventSkeleton key={i} />)}
+        </div>
+      ) : !events.length ? (
         <EmptyState
           message={
             isDefaultView
@@ -176,12 +177,10 @@ export default function TutorEventsClient() {
           })}
         />
       ) : (
-        // UPDATED: Cleaned up grid classes
         <div className="relative grid gap-4 grid-cols-1 lg:grid-cols-2">
           {isLoading && (
-            // UPDATED: Themed spinner overlay
-            <div className="absolute top-0 left-0 w-full h-full bg-background/80 z-10 flex justify-center items-start pt-32">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="absolute inset-0 bg-background/40 z-10 flex justify-center items-start pt-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
           {events.map((event) => (

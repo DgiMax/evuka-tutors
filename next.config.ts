@@ -36,6 +36,11 @@ const nextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "evuka-cdn.b-cdn.net",
+        pathname: "/**",
+      },
     ],
   },
 };

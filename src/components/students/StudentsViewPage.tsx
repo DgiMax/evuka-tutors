@@ -4,27 +4,25 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import api from "@/lib/api/axios";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import {
   Users,
   Loader2,
   AlertTriangle,
-  MoreVertical, // Changed from MoreHorizontal
+  MoreVertical,
   UserX,
   UserCheck,
   Trash2,
-  CircleOff,
+  TrendingUp,
+  UserPlus,
+  X,
+  Inbox
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -33,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,321 +41,257 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogDescription,
+  DialogHeader,
+  DialogClose,
 } from "@/components/ui/dialog";
 
-// --- TYPE DEFINITIONS ---
-interface EnrolledUser {
-  id: number;
-  first_name: string;
-  last_name: string;
-  email: string;
-}
 interface StudentEnrollment {
-  id: string; 
-  user: EnrolledUser;
+  id: string;
+  full_name: string;
+  email: string;
   course_title: string;
-  course_slug: string;
   organization_name: string | null;
-  instructor_name: string;
-  status: "active" | "dropped" | "completed";
+  status: string;
+  progress_percent: number;
   date_joined: string;
 }
-type StudentAction = "suspend" | "activate" | "remove";
 
-// --- CONFIRMATION MODAL ---
-interface ConfirmDeleteModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  title: string;
-  description: string;
-  isLoading: boolean;
-}
+const KPICard = ({ title, value, icon: Icon, colorClass }: any) => (
+  <div className="rounded-md border border-border bg-card p-4 flex flex-col justify-between space-y-3 shadow-none h-full">
+    <div className="flex items-center justify-between">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      <div className={cn("p-1.5 rounded-md", colorClass)}>
+        <Icon className="h-4 w-4" />
+      </div>
+    </div>
+    <div className="space-y-1">
+      <h2 className="text-2xl font-bold tracking-tight text-foreground">{value}</h2>
+    </div>
+  </div>
+);
 
-function ConfirmDeleteModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  title,
-  description,
-  isLoading,
-}: ConfirmDeleteModalProps) {
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md p-0 top-[15%] translate-y-0 gap-0">
-        <div className="p-4 border-b bg-muted/40 rounded-t-lg flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+const StudentsSkeleton = () => (
+  <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-6">
+        <div className="space-y-2">
+          <Skeleton width={240} height={32} />
+          <Skeleton width={320} height={20} />
+        </div>
+      </div>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} height={110} borderRadius={8} />
+        ))}
+      </div>
+      <div className="rounded-md border border-border overflow-hidden">
+        <div className="p-6 border-b bg-muted/10">
+          <Skeleton width={150} height={24} />
+        </div>
+        <div className="p-6 space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between gap-4">
+              <Skeleton circle width={40} height={40} />
+              <div className="flex-1">
+                <Skeleton width="60%" height={16} />
+              </div>
+              <div className="flex-1">
+                <Skeleton width="40%" height={16} />
+              </div>
+              <Skeleton width={80} height={24} borderRadius={4} />
             </div>
-            <div>
-                <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
-                <DialogDescription className="text-xs mt-0.5">This action cannot be undone.</DialogDescription>
-            </div>
+          ))}
         </div>
-        <div className="p-6">
-            <p className="text-sm text-foreground/80 leading-relaxed">
-                {description}
-            </p>
-        </div>
-        <div className="p-4 border-t bg-muted/40 rounded-b-lg flex justify-end gap-3">
-            <Button variant="outline" onClick={onClose} disabled={isLoading} className="h-9">
-                Cancel
-            </Button>
-            <Button variant="destructive" onClick={onConfirm} disabled={isLoading} className="h-9">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Confirm Remove
-            </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+      </div>
+    </div>
+  </SkeletonTheme>
+);
 
-// --- MAIN PAGE COMPONENT ---
 export default function StudentsViewPage() {
   const [students, setStudents] = useState<StudentEnrollment[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const { activeSlug } = useActiveOrg();
-
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [enrollmentToRemove, setEnrollmentToRemove] = useState<StudentEnrollment | null>(null);
 
-  const fetchStudents = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const response = await api.get("/students/");
-      setStudents(response.data);
+      setStudents(response.data.students);
+      setStats(response.data.stats);
     } catch (err) {
-      console.error("Failed to fetch students:", err);
-      setError("Could not load student data. Please try again.");
+      toast.error("Failed to load students");
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchStudents();
-  }, [activeSlug, fetchStudents]);
+    fetchData();
+  }, [activeSlug, fetchData]);
 
-  const handleStudentAction = async (enrollmentId: string, action: StudentAction) => {
-    setIsSubmitting(enrollmentId);
+  const handleAction = async (id: string, action: string) => {
+    setIsSubmitting(id);
     try {
-      const response = await api.post(`/students/${enrollmentId}/manage/`, { action });
-      toast.success(response.data.message || "Action successful!");
-
-      if (action === "remove") {
-        setStudents((prev) => prev.filter((s) => s.id !== enrollmentId));
-      } else {
-        const newStatus = action === "suspend" ? "dropped" : "active";
-        setStudents((prev) =>
-          prev.map((s) => (s.id === enrollmentId ? { ...s, status: newStatus } : s))
-        );
-      }
-    } catch (err: any) {
-      console.error("Failed to manage student:", err);
-      toast.error("Action Failed", { description: err.response?.data?.error || "An error occurred." });
+      const res = await api.post(`/students/${id}/manage/`, { action });
+      toast.success(res.data.message);
+      fetchData();
+    } catch (err) {
+      toast.error("Action failed");
     } finally {
       setIsSubmitting(null);
     }
   };
 
-  const openConfirmModal = (enrollment: StudentEnrollment) => {
-    setEnrollmentToRemove(enrollment);
-    setIsConfirmOpen(true);
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(amount);
+
+  const getStatusBadge = (status: string) => {
+    const s = status.toLowerCase();
+    if (s === "active") return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 rounded-md px-2 shadow-none font-medium">Active</Badge>;
+    if (s === "suspended") return <Badge className="bg-amber-50 text-amber-700 border-amber-100 rounded-md px-2 shadow-none font-medium">Suspended</Badge>;
+    return <Badge className="bg-blue-50 text-blue-700 border-blue-100 rounded-md px-2 shadow-none font-medium">Completed</Badge>;
   };
 
-  const onConfirmRemove = () => {
-    if (enrollmentToRemove) {
-      handleStudentAction(enrollmentToRemove.id, "remove");
-      setEnrollmentToRemove(null);
-      setIsConfirmOpen(false);
-    }
-  };
-
-  const getStatusBadge = (status: StudentEnrollment["status"]) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-0">Active</Badge>;
-      case "dropped":
-        return <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-100 border-0">Suspended</Badge>;
-      case "completed":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-0">Completed</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const StudentActionsDropdown: React.FC<{ enrollment: StudentEnrollment; isProcessing: boolean }> = ({ enrollment, isProcessing }) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"  disabled={isProcessing} 
-          className=" h-8 w-8 p-0 bg-transparent hover:bg-transparent active:bg-transparent focus-visible:ring-0 shadow-none border-0
-        " 
-        >
-          {isProcessing ? (
-            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-          ) : (
-            <MoreVertical className="h-5 w-5 text-muted-foreground transition-colors mx-auto" />
-          )}
-        </Button>
-
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {enrollment.status === "active" && (
-          <DropdownMenuItem onClick={() => handleStudentAction(enrollment.id, "suspend")}>
-            <UserX className="mr-2 h-4 w-4" /> Suspend
-          </DropdownMenuItem>
-        )}
-        {enrollment.status === "dropped" && (
-          <DropdownMenuItem onClick={() => handleStudentAction(enrollment.id, "activate")}>
-            <UserCheck className="mr-2 h-4 w-4" /> Activate
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => openConfirmModal(enrollment)}>
-          <Trash2 className="mr-2 h-4 w-4" /> Remove
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  // --- IMPROVED MOBILE CARD LIST ---
-  const MobileStudentList = () => (
-    <div className="space-y-4 md:hidden">
-      {students.map((enrollment) => (
-        <Card key={enrollment.id} className="p-4">
-          <div className="flex justify-between items-start">
-            <div className="space-y-0.5">
-              <p className="font-semibold text-foreground text-base">
-                {enrollment.user.first_name} {enrollment.user.last_name}
-              </p>
-              <p className="text-xs text-muted-foreground">{enrollment.user.email}</p>
-            </div>
-            {/* Action button aligned top-right, stripped styling */}
-            <StudentActionsDropdown enrollment={enrollment} isProcessing={isSubmitting === enrollment.id} />
-          </div>
-          
-          {/* Course Info in the middle - Highlighted */}
-          <div className="pt-3 border-t border-border">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Enrolled Course</p>
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-foreground">{enrollment.course_title}</span>
-                {enrollment.organization_name && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal border-muted-foreground/30 text-muted-foreground">
-                        {enrollment.organization_name}
-                    </Badge>
-                )}
-            </div>
-          </div>
-
-          {/* Footer: Date & Status */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
-                Joined: {format(new Date(enrollment.date_joined), "MMM d, yyyy")}
-            </span>
-            {getStatusBadge(enrollment.status)}
-          </div>
-        </Card>
-      ))}
-    </div>
-  );
-
-  // --- DESKTOP TABLE (Unchanged) ---
-  const renderTable = () => (
-    <div className="border rounded-lg overflow-hidden hidden md:block">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Student</TableHead>
-            <TableHead>Course</TableHead>
-            <TableHead>Date Joined</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.map((enrollment) => (
-            <TableRow key={enrollment.id}>
-              <TableCell>
-                <div className="font-medium text-foreground">
-                  {enrollment.user.first_name} {enrollment.user.last_name}
-                </div>
-                <div className="text-xs text-muted-foreground">{enrollment.user.email}</div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm text-foreground mb-1">{enrollment.course_title}</div>
-                {enrollment.organization_name && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
-                    {enrollment.organization_name}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {format(new Date(enrollment.date_joined), "MMM d, yyyy")}
-              </TableCell>
-              <TableCell>{getStatusBadge(enrollment.status)}</TableCell>
-              <TableCell className="text-right">
-                <StudentActionsDropdown enrollment={enrollment} isProcessing={isSubmitting === enrollment.id} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+  if (isLoading) return <StudentsSkeleton />;
 
   return (
-    <>
-      <Card className="max-w-6xl mx-4 sm:mx-auto my-8 p-0">
-        <CardHeader className="p-6 bg-muted/10 border-b">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <Users size={20} className="text-primary"/>
-            My Students
-          </CardTitle>
-          <CardDescription>
-            View and manage students enrolled in your courses.
-          </CardDescription>
-        </CardHeader>
+    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border pb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Student Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">Monitor progress and manage course access.</p>
+        </div>
+      </div>
 
-        <CardContent className="p-6">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-2 text-muted-foreground">Loading students...</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-40 text-destructive">
-              <AlertTriangle className="h-8 w-8" />
-              <p className="mt-2 font-medium">{error}</p>
-              <Button onClick={fetchStudents} variant="outline" className="mt-4">Try Again</Button>
-            </div>
-          ) : students.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 border-2 border-dashed border-border rounded-lg bg-muted/50">
-              <CircleOff className="h-8 w-8 text-muted-foreground" />
-              <p className="mt-2 text-muted-foreground">No students found for this context.</p>
-            </div>
-          ) : (
-            <>
-              <MobileStudentList />
-              {renderTable()}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <KPICard title="Total Students" value={stats?.total || 0} icon={Users} colorClass="bg-muted" />
+        <KPICard title="Active Now" value={stats?.active || 0} icon={UserPlus} colorClass="bg-emerald-50 text-emerald-600" />
+        <KPICard title="Suspended" value={stats?.suspended || 0} icon={UserX} colorClass="bg-amber-50 text-amber-600" />
+        <KPICard title="Graduated" value={stats?.completed || 0} icon={TrendingUp} colorClass="bg-blue-50 text-blue-600" />
+      </div>
 
-      <ConfirmDeleteModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={onConfirmRemove}
-        isLoading={!!isSubmitting}
-        title="Remove Student"
-        description={`Are you sure you want to remove ${enrollmentToRemove?.user.first_name || "this student"} from the course? This action cannot be undone.`}
-      />
-    </>
+      <div className="rounded-md border border-border bg-card shadow-none overflow-hidden">
+        <div className="p-6 border-b border-border bg-muted/10">
+          <h3 className="font-semibold text-base">Enrolled Students</h3>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 border-border hover:bg-muted/30">
+                <TableHead className="pl-6 h-12 text-xs uppercase tracking-wider font-semibold">Student Details</TableHead>
+                <TableHead className="h-12 text-xs uppercase tracking-wider font-semibold">Course & Org</TableHead>
+                <TableHead className="h-12 text-xs uppercase tracking-wider font-semibold text-center">Progress</TableHead>
+                <TableHead className="h-12 text-xs uppercase tracking-wider font-semibold">Status</TableHead>
+                <TableHead className="pr-6 h-12 text-xs uppercase tracking-wider font-semibold text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {students.length > 0 ? (
+                students.map((s) => (
+                  <TableRow key={s.id} className="border-border hover:bg-muted/20 transition-colors">
+                    <TableCell className="pl-6 py-4">
+                      <p className="font-medium text-foreground text-sm">{s.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{s.email}</p>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <p className="text-sm font-medium">{s.course_title}</p>
+                      {s.organization_name && <p className="text-[10px] text-muted-foreground uppercase tracking-tight">{s.organization_name}</p>}
+                    </TableCell>
+                    <TableCell className="py-4 min-w-[140px]">
+                      <div className="flex flex-col gap-1.5 px-4">
+                        <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
+                          <span>{s.progress_percent}%</span>
+                        </div>
+                        <Progress value={s.progress_percent} className="h-1.5" indicatorClassName="bg-primary" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">{getStatusBadge(s.status)}</TableCell>
+                    <TableCell className="pr-6 py-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted rounded-md shadow-none">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-md border-border shadow-none">
+                          {s.status.toLowerCase() === "active" ? (
+                            <DropdownMenuItem onClick={() => handleAction(s.id, "suspend")} className="text-sm cursor-pointer">
+                              <UserX className="mr-2 h-4 w-4" /> Suspend Student
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => handleAction(s.id, "activate")} className="text-sm cursor-pointer">
+                              <UserCheck className="mr-2 h-4 w-4" /> Restore Access
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            onClick={() => { setEnrollmentToRemove(s); setIsConfirmOpen(true); }}
+                            className="text-sm text-red-600 focus:text-red-600 cursor-pointer"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Remove Permanently
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5} className="h-64 text-center">
+                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-3">
+                      <div className="p-4 border-2 border-dashed border-border rounded-full bg-muted/20">
+                        <Inbox className="h-8 w-8 opacity-20" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">No students enrolled</p>
+                        <p className="text-xs">Once students join your courses, they will appear here.</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-[440px] p-0 gap-0 border-border/80 rounded-md bg-background shadow-none overflow-hidden [&>button]:hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30 flex flex-row items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <div className="p-2 bg-red-50 border border-red-100 rounded-md">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+              </div>
+              Confirm Removal
+            </DialogTitle>
+            <DialogClose className="rounded-md p-1 hover:bg-muted transition-colors"><X className="h-4 w-4 text-muted-foreground" /></DialogClose>
+          </DialogHeader>
+          <div className="p-6">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Are you sure you want to remove <span className="font-bold text-foreground">{enrollmentToRemove?.full_name}</span>? 
+              This will revoke all course access and delete their enrollment record permanently.
+            </p>
+          </div>
+          <div className="px-6 py-4 border-t bg-muted/30 flex items-center justify-end gap-3">
+            <Button variant="outline" size="sm" onClick={() => setIsConfirmOpen(false)} className="rounded-md h-9 shadow-none">Cancel</Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => { 
+                if (enrollmentToRemove) handleAction(enrollmentToRemove.id, "remove"); 
+                setIsConfirmOpen(false); 
+              }} 
+              className="rounded-md h-9 shadow-none"
+            >
+              Confirm Removal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

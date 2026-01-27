@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
-import { useDebounce } from "@/lib/hooks/useDebounce"; // Using the shared hook
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import api from "@/lib/api/axios";
-import { Loader2, BookOpen, Plus, Search, AlertTriangle } from "lucide-react";
+import { BookOpen, Plus, Search, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -25,7 +27,29 @@ const statusOptions = {
   published: "Published",
 };
 
-// --- Reusable Empty State component (themed) ---
+const CourseSkeleton = () => (
+  <div className="flex flex-col sm:flex-row border border-border p-2 rounded-md h-[148px] sm:h-36">
+    <div className="w-full h-32 sm:w-40 sm:h-full flex-shrink-0">
+      <Skeleton height="100%" borderRadius="4px" />
+    </div>
+    <div className="flex flex-col justify-between flex-1 p-2">
+      <div>
+        <Skeleton width="60%" height={16} />
+        <div className="mt-2">
+          <Skeleton count={2} height={10} />
+        </div>
+      </div>
+      <div className="flex justify-between items-center mt-2">
+        <Skeleton width={60} height={18} borderRadius={10} />
+        <div className="flex gap-2">
+          <Skeleton width={70} height={28} />
+          <Skeleton width={28} height={28} />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const EmptyState: React.FC<{
   message: string;
   linkPath?: string;
@@ -56,7 +80,6 @@ export default function TutorCoursesClient() {
     const fetchCourses = async () => {
       setIsLoading(true);
       setError(null);
-
       try {
         const params = new URLSearchParams();
         if (statusFilter !== "all") params.append("status", statusFilter);
@@ -65,17 +88,14 @@ export default function TutorCoursesClient() {
         const url = `/tutor-courses/?${params.toString()}`;
         const res = await api.get(url);
         const data = Array.isArray(res.data) ? res.data : res.data.results || [];
-
         setCourses(data);
       } catch (err) {
-        console.error("Error loading tutor/admin courses:", err);
         setError("Failed to load your courses.");
         toast.error("Failed to load your courses.");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchCourses();
   }, [activeSlug, statusFilter, debouncedSearchTerm]);
 
@@ -85,26 +105,12 @@ export default function TutorCoursesClient() {
     return `/${activeSlug}${path}`;
   };
 
-  const createCourseHref = activeSlug
-    ? `/${activeSlug}/create-course`
-    : "/create-course";
-
+  const createCourseHref = activeSlug ? `/${activeSlug}/courses/create` : "/courses/create";
   const isDefaultView = statusFilter === "all" && searchTerm === "";
 
-  // 1. Initial Loading State
-  if (isLoading && !courses.length) {
-    return (
-      <div className="flex flex-col justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading courses...</p>
-      </div>
-    );
-  }
-
-  // 2. Error State
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-60 text-destructive container mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-6 sm:py-8">
+      <div className="flex flex-col items-center justify-center h-60 text-destructive container mx-auto px-4 py-8">
         <AlertTriangle className="h-8 w-8" />
         <p className="mt-2 font-medium">{error}</p>
         <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
@@ -116,16 +122,12 @@ export default function TutorCoursesClient() {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-      {/* Header / Toolbar */}
       <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Title */}
         <h2 className="text-2xl font-semibold text-foreground self-start md:self-center">
           My Courses
         </h2>
 
-        {/* Controls */}
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-          {/* Search Input */}
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -136,56 +138,44 @@ export default function TutorCoursesClient() {
             />
           </div>
 
-          {/* Status Filter */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               {Object.entries(statusOptions).map(([key, value]) => (
-                <SelectItem key={key} value={key}>
-                  {value}
-                </SelectItem>
+                <SelectItem key={key} value={key}>{value}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {/* New Course Button */}
           <Button asChild className="w-full sm:w-auto">
             <Link href={createCourseHref} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              New Course
+              <Plus className="h-4 w-4" /> New Course
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Content or Empty State */}
-      {!courses.length ? (
+      {isLoading && !courses.length ? (
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+          {[...Array(4)].map((_, i) => <CourseSkeleton key={i} />)}
+        </div>
+      ) : !courses.length ? (
         <EmptyState
-          message={
-            isDefaultView
-              ? "You haven't created any courses yet."
-              : "No courses found matching your criteria."
-          }
-          {...(isDefaultView && {
-            linkPath: createCourseHref,
-            linkText: "Create your first course",
-          })}
+          message={isDefaultView ? "You haven't created any courses yet." : "No courses found."}
+          {...(isDefaultView && { linkPath: createCourseHref, linkText: "Create your first course" })}
         />
       ) : (
         <div className="relative grid gap-4 grid-cols-1 lg:grid-cols-2">
+          {/* Sub-loading overlay for subsequent searches/filters */}
           {isLoading && (
-            <div className="absolute top-0 left-0 w-full h-full bg-background/80 z-10 flex justify-center items-start pt-32">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <div className="absolute inset-0 bg-background/40 z-10 flex justify-center items-start pt-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
           {courses.map((course) => (
-            <TutorCourseCard
-              key={course.slug}
-              course={course}
-              makeContextLink={makeContextLink}
-            />
+            <TutorCourseCard key={course.slug} course={course} makeContextLink={makeContextLink} />
           ))}
         </div>
       )}

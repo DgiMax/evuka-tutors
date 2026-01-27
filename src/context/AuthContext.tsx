@@ -81,7 +81,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await api.post("/users/refresh/", null, { _skipAuthRefresh: true });
             return api(originalRequest);
           } catch (refreshError) {
+            // Force logout on refresh fail
             setUser(null);
+            localStorage.removeItem("activeOrgSlug"); // <--- SAFETY CLEAR
+            localStorage.removeItem("activeOrgRole"); // <--- SAFETY CLEAR
             return Promise.reject(refreshError);
           }
         }
@@ -121,14 +124,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const path = pathname || "/";
     const isOnboardingRoute = path.startsWith("/onboarding");
     
-    // Auth-related routes that don't require being logged in
     const publicRoutes = [
       "/login", "/register", "/forgot-password", 
       "/verify-email", "/reset-password", "/check-email", "/auth/google"
     ];
     const isPublicRoute = publicRoutes.some(r => path === r || path.startsWith(`${r}/`));
 
-    // 1. Guest User Logic (Not Logged In)
+    // 1. Guest User Logic
     if (!user) {
       if (!isPublicRoute && !isOnboardingRoute) { 
         sessionStorage.setItem("postLoginRedirect", path);
@@ -138,7 +140,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // 2. Authenticated But NOT A Tutor -> Force Onboarding
-    // Even if they are a student, they cannot access the Tutor Portal until they become a Tutor.
     if (!user.is_tutor) {
       if (!isOnboardingRoute) {
         router.replace("/onboarding");
@@ -160,7 +161,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await api.post("/users/login/", { username, password });
     const userData = await fetchCurrentUser();
     
-    // Immediate check: If logged in but not a tutor, go to onboarding immediately
+    // Safety check: Ensure no stale org context from previous session
+    localStorage.removeItem("activeOrgSlug");
+    localStorage.removeItem("activeOrgRole");
+
     if (userData && !userData.is_tutor) {
         router.push("/onboarding");
         return;
@@ -177,6 +181,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try { await api.post("/users/logout/"); } catch {}
+    
+    // --- CRITICAL FIX: Clear Active Context on Logout ---
+    localStorage.removeItem("activeOrgSlug");
+    localStorage.removeItem("activeOrgRole");
+    // ----------------------------------------------------
+
     setUser(null);
     router.push("/login");
   };

@@ -9,29 +9,43 @@ import { GoogleProvider } from "@/context/GoogleProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
+  const [activeRole, setActiveRole] = useState<string | null>(null);
   const activeSlugRef = useRef<string | null>(null);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('activeOrgSlug');
-    if (stored && stored !== 'null' && stored !== 'undefined') {
-      console.log('[Providers] Restoring activeSlug from localStorage:', stored);
-      setActiveSlug(stored);
-      activeSlugRef.current = stored;
+    const storedSlug = localStorage.getItem('activeOrgSlug');
+    const storedRole = localStorage.getItem('activeOrgRole');
+
+    if (storedSlug && storedSlug !== 'null' && storedSlug !== 'undefined') {
+      console.log('[Providers] Restoring activeSlug from localStorage:', storedSlug);
+      setActiveSlug(storedSlug);
+      activeSlugRef.current = storedSlug;
+    }
+
+    if (storedRole && storedRole !== 'null' && storedRole !== 'undefined') {
+      setActiveRole(storedRole);
     }
   }, []);
 
-  // Keep ref and localStorage in sync
   useEffect(() => {
     activeSlugRef.current = activeSlug;
     if (activeSlug === null) {
       localStorage.removeItem('activeOrgSlug');
+      localStorage.removeItem('activeOrgRole');
+      setActiveRole(null);
     } else {
       localStorage.setItem('activeOrgSlug', activeSlug);
     }
   }, [activeSlug]);
 
-  // Axios interceptor for org header
+  useEffect(() => {
+    if (activeRole === null) {
+      localStorage.removeItem('activeOrgRole');
+    } else {
+      localStorage.setItem('activeOrgRole', activeRole);
+    }
+  }, [activeRole]);
+
   useEffect(() => {
     const interceptorId = api.interceptors.request.use((config) => {
       const currentSlug = activeSlugRef.current;
@@ -54,7 +68,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <GoogleProvider>
       <AuthProvider>
-        <ActiveContext.Provider value={{ activeSlug, setActiveSlug }}>
+        <ActiveContext.Provider value={{ activeSlug, setActiveSlug, activeRole, setActiveRole }}>
           <TanstackQueryProvider>
             {children}
           </TanstackQueryProvider>

@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm, useFieldArray, SubmitHandler } from "react-hook-form";
+import { useForm, useFieldArray, SubmitHandler, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Save, Loader2, Trash2, Plus } from "lucide-react";
+import { Save, Loader2, Trash2, Plus, Lock, AlertTriangle, Search, X, User as UserIcon } from "lucide-react";
 
 import api from "@/lib/api/axios";
 import {
@@ -42,11 +42,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SettingsTabProps {
   courseSlug: string;
   initialData: CourseManagementData | undefined;
   formOptions: FormOptionsData | null;
+}
+
+interface InstructorResult {
+  id: number;
+  username: string;
+  display_name: string;
+  profile_image: string | null;
+  headline: string;
 }
 
 const LoaderState: React.FC = () => (
@@ -74,6 +95,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const queryClient = useQueryClient();
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<InstructorResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [openCombobox, setOpenCombobox] = useState(false);
+  const [selectedInstructorsDisplay, setSelectedInstructorsDisplay] = useState<InstructorResult[]>([]);
+
   const toSelectValue = (id: number | string | null | undefined) => {
     if (id === null || id === undefined) return "";
     return id.toString();
@@ -96,9 +123,27 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       is_public: false,
       thumbnail: null,
       promo_video: null,
+      instructors: [],
     },
     mode: "onBlur",
   });
+
+  const formInstructorIds = useWatch({
+    control: form.control,
+    name: "instructors",
+  }) || [];
+
+  const allValues = form.watch();
+  
+  const validationResult = useMemo(() => {
+    return SettingsSchema.safeParse({ ...allValues, status: 'published' });
+  }, [allValues]);
+
+  const canPublish = validationResult.success;
+  const missingFields = useMemo(() => {
+    if (validationResult.success) return [];
+    return [...new Set(validationResult.error.issues.map(i => String(i.path[0])))];
+  }, [validationResult]);
 
   useEffect(() => {
     if (!initialData || !formOptions) return;
@@ -130,8 +175,49 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       is_public: initialData.is_public ?? false,
       thumbnail: getExistingFileUrl(initialData.thumbnail),
       promo_video: initialData.promo_video || null,
+      instructors: initialData.instructors || [],
     });
   }, [initialData, formOptions, form.reset]);
+
+  useEffect(() => {
+    const shouldSearch = (formOptions?.context === 'organization') || searchQuery.length >= 3;
+
+    if (!shouldSearch) {
+        setSearchResults([]);
+        return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        let url = `/users/instructors/search/?q=${searchQuery}`;
+        const { data } = await api.get(url);
+        setSearchResults(data);
+      } catch (error) {
+        console.error("Search failed", error);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, formOptions?.context]);
+
+  const addInstructor = (instructor: InstructorResult) => {
+    const currentIds = form.getValues("instructors") || [];
+    if (!currentIds.includes(instructor.id)) {
+      form.setValue("instructors", [...currentIds, instructor.id], { shouldDirty: true });
+      setSelectedInstructorsDisplay((prev) => [...prev, instructor]);
+    }
+    setOpenCombobox(false);
+    setSearchQuery("");
+  };
+
+  const removeInstructor = (idToRemove: number) => {
+    const currentIds = form.getValues("instructors") || [];
+    form.setValue("instructors", currentIds.filter((id) => id !== idToRemove), { shouldDirty: true });
+    setSelectedInstructorsDisplay((prev) => prev.filter((i) => i.id !== idToRemove));
+  };
 
   const {
     fields: objectives,
@@ -166,7 +252,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
         key !== "promo_video" &&
         key !== "learning_objectives" &&
         key !== "price" &&
-        key !== "is_public"
+        key !== "is_public" &&
+        key !== "instructors"
       ) {
         if (value !== undefined && value !== null) {
           formData.append(key, value.toString());
@@ -199,12 +286,18 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
       .map((obj) => ({ value: obj.value }));
 
     formData.append("learning_objectives", JSON.stringify(objectivesToSubmit));
+    
+    if (data.instructors && data.instructors.length > 0) {
+        data.instructors.forEach(id => formData.append("instructors", id.toString()));
+    }
+
     formData.delete("modules");
 
     try {
       const response = await api.put(
         `/tutor-courses/${courseSlug}/`,
-        formData);
+        formData
+      );
       toast.success(
         `Settings updated successfully! Status: ${
           statusOptions[response.data.status as CourseStatus]
@@ -235,16 +328,40 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
 
   if (!formOptions || !initialData) return <LoaderState />;
 
+  const labelClasses = "uppercase text-xs font-bold text-muted-foreground tracking-wider";
+  const inputClasses = "w-full text-zinc-600 font-medium";
+
   return (
-    <Card className="p-0">
-      <CardHeader className="p-6">
-        <CardTitle>Course Settings & General Info</CardTitle>
-        <CardDescription>
-          Update basic information, taxonomy, pricing, and status. Click 'Save'
-          to apply changes.
-        </CardDescription>
+    <Card className="border border-border shadow-none p-3 md:p-6 rounded-t-md rounded-b-lg">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-0 gap-4">
+        <div className="space-y-1">
+          <CardTitle>Course Settings & General Info</CardTitle>
+          <CardDescription>
+            Update basic information, taxonomy, pricing, and status. Click &apos;Save&apos;
+            to apply changes.
+          </CardDescription>
+        </div>
       </CardHeader>
-      <CardContent className="p-6 pt-0">
+      
+      <CardContent className="px-0">
+        
+        {!canPublish && (
+            <Alert variant="destructive" className="mb-6 bg-destructive/5 border-destructive/20 text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Required for Publishing</AlertTitle>
+                <AlertDescription className="text-xs mt-1">
+                    To publish this course, you must complete the following fields:
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {missingFields.map((field) => (
+                            <span key={field} className="px-2 py-0.5 rounded-full bg-destructive/10 border border-destructive/20 text-[10px] font-medium capitalize">
+                                {field.replace(/_/g, " ")}
+                            </span>
+                        ))}
+                    </div>
+                </AlertDescription>
+            </Alert>
+        )}
+
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleUpdateSettings)}
@@ -255,9 +372,9 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Course Title</FormLabel>
+                  <FormLabel className={labelClasses}>COURSE TITLE</FormLabel>
                   <FormControl>
-                    <ShadcnInput {...field} value={field.value ?? ""} />
+                    <ShadcnInput {...field} value={field.value ?? ""} className={inputClasses} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -268,12 +385,13 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               name="short_description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Short Description (Max 200 chars)</FormLabel>
+                  <FormLabel className={labelClasses}>SHORT DESCRIPTION (MAX 200 CHARS)</FormLabel>
                   <FormControl>
                     <Textarea
                       maxLength={200}
                       {...field}
                       value={field.value ?? ""}
+                      className={inputClasses}
                     />
                   </FormControl>
                   <FormMessage />
@@ -285,17 +403,105 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               name="long_description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Full Course Description</FormLabel>
+                  <FormLabel className={labelClasses}>FULL COURSE DESCRIPTION</FormLabel>
                   <FormControl>
-                    <Textarea rows={5} {...field} value={field.value ?? ""} />
+                    <Textarea rows={5} {...field} value={field.value ?? ""} className={inputClasses} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <div className="space-y-3">
+                <FormLabel className={labelClasses}>INSTRUCTORS</FormLabel>
+                <div className="flex flex-wrap gap-2 mb-3">
+                    {selectedInstructorsDisplay.map((instructor) => (
+                        <div key={instructor.id} className="flex items-center gap-2 bg-muted border border-border rounded-full pl-1 pr-3 py-1">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={instructor.profile_image || ""} />
+                                <AvatarFallback><UserIcon size={12} /></AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm font-medium">{instructor.display_name || instructor.username}</span>
+                            <button 
+                                type="button" 
+                                onClick={() => removeInstructor(instructor.id)}
+                                className="text-muted-foreground hover:text-destructive ml-1"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                    ))}
+                    {formInstructorIds.length > selectedInstructorsDisplay.length && (
+                        <div className="flex items-center gap-2 bg-muted border border-border rounded-full px-3 py-1">
+                            <span className="text-sm text-muted-foreground">
+                                {formInstructorIds.length - selectedInstructorsDisplay.length} existing instructor(s) loaded
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" role="combobox" aria-expanded={openCombobox} className={`w-full justify-between text-muted-foreground ${inputClasses}`}>
+                            <span className="flex items-center"><Search className="mr-2 h-4 w-4" /> 
+                            {isOrgCourse ? "Search organization tutors..." : "Search by username or name..."}
+                            </span>
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command shouldFilter={false}> 
+                            <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
+                                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                <input 
+                                    className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                                    placeholder={isOrgCourse ? "Type to filter..." : "Type at least 3 characters..."}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <CommandList>
+                                {isSearching && (
+                                    <div className="py-6 text-center text-sm text-muted-foreground flex justify-center">
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" /> Searching...
+                                    </div>
+                                )}
+                                {!isSearching && searchResults.length === 0 && (searchQuery.length >= 3 || isOrgCourse) && (
+                                    <div className="py-6 text-center text-sm text-muted-foreground">No instructors found.</div>
+                                )}
+                                {!isSearching && searchResults.length > 0 && (
+                                    <CommandGroup heading="Results">
+                                        {searchResults.map((instructor) => {
+                                            const isSelected = formInstructorIds.includes(instructor.id);
+                                            return (
+                                                <CommandItem
+                                                    key={instructor.id}
+                                                    value={instructor.username}
+                                                    onSelect={() => addInstructor(instructor)}
+                                                    disabled={isSelected}
+                                                    className="flex items-center gap-3 cursor-pointer p-2 hover:bg-accent"
+                                                >
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarImage src={instructor.profile_image || ""} />
+                                                        <AvatarFallback><UserIcon size={14} /></AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">{instructor.display_name}</span>
+                                                        <span className="text-xs text-muted-foreground">@{instructor.username}</span>
+                                                    </div>
+                                                    {isSelected && <span className="ml-auto text-xs text-primary">Added</span>}
+                                                </CommandItem>
+                                            );
+                                        })}
+                                    </CommandGroup>
+                                )}
+                            </CommandList>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+            </div>
+
             <div>
-              <FormLabel>Learning Objectives</FormLabel>
+              <FormLabel className={labelClasses}>LEARNING OBJECTIVES</FormLabel>
               <div className="space-y-2 mt-2">
                 {objectives.map((objField, index) => (
                   <FormField
@@ -309,6 +515,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                             placeholder={`Objective #${index + 1}`}
                             {...field}
                             value={field.value ?? ""}
+                            className={inputClasses}
                           />
                         </FormControl>
                         <Button
@@ -319,7 +526,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                             objectives.length > 2 && removeObjective(index)
                           }
                           disabled={objectives.length <= 2}
-                          className="text-destructive/70 hover:text-destructive"
+                          className="text-destructive/70 hover:text-destructive shrink-0"
                         >
                           <Trash2 size={16} />
                         </Button>
@@ -346,7 +553,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 name="global_category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel className={labelClasses}>CATEGORY</FormLabel>
                     <Select
                       onValueChange={(value) => {
                         field.onChange(value);
@@ -357,9 +564,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       key={field.value || "initial-category"}
                       value={field.value || ""}
                     >
-                      <SelectTrigger className="truncate">
-                        <SelectValue placeholder="Select Category..." />
-                      </SelectTrigger>
+                      <FormControl>
+                        <SelectTrigger className={inputClasses}>
+                            <SelectValue placeholder="Select Category..." />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {formOptions.globalCategories.map((c) => (
                           <SelectItem key={c.id} value={c.id.toString()}>
@@ -377,7 +586,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 name="global_subcategory"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Subcategory</FormLabel>
+                    <FormLabel className={labelClasses}>SUBCATEGORY</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       key={field.value || "initial-subcategory"}
@@ -387,9 +596,11 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                         filteredSubCategories.length === 0
                       }
                     >
-                      <SelectTrigger className="truncate">
-                        <SelectValue placeholder="Select Subcategory..." />
-                      </SelectTrigger>
+                      <FormControl>
+                        <SelectTrigger className={inputClasses}>
+                            <SelectValue placeholder="Select Subcategory..." />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {filteredSubCategories.map((s) => (
                           <SelectItem key={s.id} value={s.id.toString()}>
@@ -407,15 +618,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 name="global_level"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Difficulty Level</FormLabel>
+                    <FormLabel className={labelClasses}>DIFFICULTY LEVEL</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       key={field.value || "initial-level"}
                       value={field.value || ""}
                     >
-                      <SelectTrigger className="truncate">
-                        <SelectValue placeholder="Select Difficulty..." />
-                      </SelectTrigger>
+                      <FormControl>
+                        <SelectTrigger className={inputClasses}>
+                            <SelectValue placeholder="Select Difficulty..." />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {formOptions.globalLevels.map((l) => (
                           <SelectItem key={l.id} value={l.id.toString()}>
@@ -438,15 +651,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                     name="org_category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Organization Category</FormLabel>
+                        <FormLabel className={labelClasses}>ORGANIZATION CATEGORY</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           key={field.value || "initial-org-cat"}
                           value={field.value || ""}
                         >
-                          <SelectTrigger className="truncate">
-                            <SelectValue placeholder="Select Org Category..." />
-                          </SelectTrigger>
+                          <FormControl>
+                            <SelectTrigger className={inputClasses}>
+                                <SelectValue placeholder="Select Org Category..." />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             {formOptions.orgCategories.map((c) => (
                               <SelectItem key={c.id} value={c.id.toString()}>
@@ -464,15 +679,17 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                     name="org_level"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Organization Level</FormLabel>
+                        <FormLabel className={labelClasses}>ORGANIZATION LEVEL</FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           key={field.value || "initial-org-level"}
                           value={field.value || ""}
                         >
-                          <SelectTrigger className="truncate">
-                            <SelectValue placeholder="Select Org Level..." />
-                          </SelectTrigger>
+                          <FormControl>
+                            <SelectTrigger className={inputClasses}>
+                                <SelectValue placeholder="Select Org Level..." />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             {formOptions.orgLevels.map((l) => (
                               <SelectItem key={l.id} value={l.id.toString()}>
@@ -494,8 +711,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border bg-card p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Marketplace Visibility
+                          <FormLabel className={labelClasses}>
+                            MARKETPLACE VISIBILITY
                           </FormLabel>
                           <FormDescription>
                             Publish this course to the global marketplace? If
@@ -521,24 +738,26 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price (KES)</FormLabel>
+                    <FormLabel className={labelClasses}>PRICE (KES)</FormLabel>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
                         KSh
                       </span>
-                      <ShadcnInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0 (Free)"
-                        className="pl-12"
-                        {...field}
-                        value={field.value ?? ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          field.onChange(val === "" ? undefined : parseFloat(val));
-                        }}
-                      />
+                      <FormControl>
+                        <ShadcnInput
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0 (Free)"
+                            className={`pl-12 ${inputClasses}`}
+                            {...field}
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                            const val = e.target.value;
+                            field.onChange(val === "" ? undefined : parseFloat(val));
+                            }}
+                        />
+                      </FormControl>
                     </div>
                     <FormMessage />
                   </FormItem>
@@ -549,21 +768,29 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Course Status</FormLabel>
+                    <FormLabel className={labelClasses}>COURSE STATUS</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       key={field.value || "initial-status"}
                       value={field.value || ""}
                     >
-                      <SelectTrigger className="truncate">
-                        <SelectValue placeholder="Select Status..." />
-                      </SelectTrigger>
+                      <FormControl>
+                        <SelectTrigger className={inputClasses}>
+                            <SelectValue placeholder="Select Status..." />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
-                        {Object.keys(statusOptions).map((k) => (
-                          <SelectItem key={k} value={k}>
-                            {statusOptions[k as CourseStatus]}
-                          </SelectItem>
-                        ))}
+                        {Object.keys(statusOptions).map((k) => {
+                          const isRestricted = (k === 'published' || k === 'pending_review') && !canPublish && field.value !== k;
+                          return (
+                            <SelectItem key={k} value={k} disabled={isRestricted}>
+                                <div className="flex items-center gap-2">
+                                    {statusOptions[k as CourseStatus]}
+                                    {isRestricted && <Lock className="h-3 w-3 text-muted-foreground" />}
+                                </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -572,7 +799,7 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <FormField
                 control={form.control}
                 name="thumbnail"
@@ -587,25 +814,30 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                       : null;
 
                   return (
-                    <FormItem>
-                      <FormLabel>Course Thumbnail (Image)</FormLabel>
-                      <FormControl>
-                        <ShadcnInput
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) =>
-                            onChange(e.target.files?.[0] || null)
-                          }
-                          {...restField}
-                        />
+                    <FormItem className="flex flex-col h-full">
+                      <FormLabel className={labelClasses}>COURSE THUMBNAIL (IMAGE)</FormLabel>
+                      <FormControl className="flex-1">
+                        <div className="space-y-2 h-full">
+                            <ShadcnInput
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                                onChange(e.target.files?.[0] || null)
+                            }
+                            className={inputClasses}
+                            {...restField}
+                            />
+                            {currentThumbnail && (
+                                <div className="mt-auto pt-2">
+                                    <img
+                                    src={currentThumbnail}
+                                    alt="Thumbnail Preview"
+                                    className="h-32 w-auto rounded-md border border-border object-cover"
+                                    />
+                                </div>
+                            )}
+                        </div>
                       </FormControl>
-                      {currentThumbnail && (
-                        <img
-                          src={currentThumbnail}
-                          alt="Thumbnail Preview"
-                          className="h-16 w-auto rounded-md border border-border object-cover mt-2"
-                        />
-                      )}
                       <FormMessage />
                     </FormItem>
                   );
@@ -616,13 +848,14 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
                 control={form.control}
                 name="promo_video"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Promo Video Link</FormLabel>
+                  <FormItem className="flex flex-col h-full">
+                    <FormLabel className={labelClasses}>PROMO VIDEO LINK</FormLabel>
                     <FormControl>
                       <ShadcnInput
                         placeholder="e.g., https://vimeo.com/123456"
                         {...field}
                         value={field.value || ""}
+                        className={inputClasses}
                       />
                     </FormControl>
                     <FormMessage />
@@ -631,12 +864,8 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
               />
             </div>
 
-            <div className="flex justify-end pt-6 border-t border-border">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full sm:w-[200px]"
-              >
+            <div className="flex justify-end sticky bottom-6">
+              <Button type="submit" disabled={isLoading} size="lg" className="shadow-lg">
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

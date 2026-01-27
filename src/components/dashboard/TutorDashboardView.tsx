@@ -1,18 +1,20 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import api from "@/lib/api/axios";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import {
   Loader2,
   Plus,
   UserPlus,
   Video,
   TrendingUp,
-  AlertCircle,
   ArrowRight,
   UserCheck,
   UserX,
@@ -22,15 +24,22 @@ import {
   User,
   Mail,
   Send,
-  Inbox
+  Inbox,
+  Users,
+  DollarSign,
+  ChevronRight,
+  X,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,614 +50,349 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface DashboardData {
-  context: string;
-  currency: string;
   metrics: {
     total_courses: number;
-    active_tutors: number;
     active_students: number;
     total_revenue: number;
-    upcoming_events_count: number;
-    total_events: number;
+    upcoming_events: number;
+    active_tutors: number;
   };
   upcoming_classes: Array<{
-    id: number;
+    id: string;
     title: string;
     course_title: string;
     date: string;
     start_time: string;
-    end_time: string;
-    jitsi_meeting_link: string;
+    end_datetime: string;
+    status: string;
+    chat_room_id: string;
+  }>;
+  upcoming_events: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    start_time: string;
+    banner_image: string | null;
+    event_type: string;
   }>;
   best_performing_courses: Array<{
-    id: number;
+    id: string;
     title: string;
     slug: string;
     thumbnail: string | null;
     student_count: number;
     revenue: number;
+    rating_avg: number;
   }>;
 }
 
-interface RequestItem {
-  id: number;
-  created_at: string;
-  message?: string;
-  status: string;
-  user?: { id: number; username: string; email: string; full_name?: string };
-  organization?: { id: number; name: string; slug: string };
-}
+const inputStyles = "rounded-md border-border bg-background transition-colors hover:border-secondary focus-visible:ring-0 focus-visible:border-secondary shadow-none outline-none w-full";
 
-interface InvitationItem {
-  id: number;
-  created_at: string;
-  role: string;
-  status: string;
-  invited_user?: { id: number; username: string; email: string; full_name?: string };
-  organization?: { id: number; name: string; slug: string };
-  invited_by?: { id: number; username: string; email: string; full_name?: string };
-}
+const KPICard = ({ title, value, icon: Icon, color }: any) => (
+  <div className="rounded-md border border-border bg-card p-5 flex flex-col justify-between space-y-4 shadow-none h-full transition-colors hover:border-muted-foreground/30">
+    <div className="flex items-center justify-between">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{title}</p>
+      <div className={cn("p-1.5 rounded-md", color)}>
+        <Icon className="h-4 w-4" />
+      </div>
+    </div>
+    <h2 className="text-2xl font-bold tracking-tight text-foreground">{value}</h2>
+  </div>
+);
+
+const DashboardSkeleton = () => (
+  <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-8">
+      <div className="flex justify-between items-center border-b pb-6">
+        <div className="space-y-2">
+          <Skeleton width={200} height={32} />
+          <Skeleton width={300} height={20} />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton width={120} height={40} borderRadius={6} />
+          <Skeleton width={120} height={40} borderRadius={6} />
+        </div>
+      </div>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => <Skeleton key={i} height={110} borderRadius={8} />)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Skeleton height={400} borderRadius={8} />
+        <Skeleton height={400} borderRadius={8} />
+      </div>
+    </div>
+  </SkeletonTheme>
+);
 
 export default function TutorDashboardClient() {
   const { activeSlug } = useActiveOrg();
   const { user: currentUser } = useAuth();
-  
+  const router = useRouter();
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [invitations, setInvitations] = useState<InvitationItem[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
 
-  const currentOrgMembership = currentUser?.organizations?.find(
-    (org: any) => org.organization_slug === activeSlug
-  );
+  const isAdmin = useMemo(() => {
+    const membership = currentUser?.organizations?.find((o: any) => o.organization_slug === activeSlug);
+    return membership?.role === "admin" || membership?.role === "owner";
+  }, [currentUser, activeSlug]);
 
-  const isAdmin =
-    currentOrgMembership?.role === "admin" ||
-    currentOrgMembership?.role === "owner";
-
-  const isPersonalContext = !activeSlug;
-
-  const fetchDashboardData = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
-    setRequests([]);
-    setInvitations([]);
-
     try {
       const headers = activeSlug ? { "X-Organization-Slug": activeSlug } : {};
-
-      const dashboardPromise = api.get("/users/dashboard/tutor/", { headers });
-
-      let requestsPromise: Promise<any> = Promise.resolve(null);
-      let invitationsPromise: Promise<any> = Promise.resolve(null);
-
-      if (isPersonalContext) {
-        requestsPromise = api.get("/community/my-join-requests/");
-        invitationsPromise = api.get("/community/my-invitations/");
-      } else if (isAdmin) {
-        requestsPromise = api.get("/community/manage/requests/", { headers });
-        invitationsPromise = api.get("/community/manage/invitations/", { headers });
-      }
-
-      const results = await Promise.allSettled([
-        dashboardPromise,
-        requestsPromise,
-        invitationsPromise,
+      const [dashRes, reqRes, invRes] = await Promise.allSettled([
+        api.get("/users/dashboard/tutor/", { headers }),
+        !activeSlug ? api.get("/community/my-join-requests/") : isAdmin ? api.get("/community/manage/requests/", { headers }) : Promise.resolve(null),
+        !activeSlug ? api.get("/community/my-invitations/") : isAdmin ? api.get("/community/manage/invitations/", { headers }) : Promise.resolve(null),
       ]);
 
-      if (results[0].status === "fulfilled") {
-        setData(results[0].value.data);
-      } else {
-        throw new Error("Failed to load dashboard metrics");
-      }
-
-      if (results[1].status === "fulfilled" && results[1].value) {
-        const res = results[1].value as any; 
-        setRequests(res.data.results || res.data || []);
-      }
-
-      if (results[2].status === "fulfilled" && results[2].value) {
-        const res = results[2].value as any;
-        setInvitations(res.data.results || res.data || []);
-      }
-
-    } catch (err) {
-      console.error("Error loading dashboard:", err);
-      setError("Failed to load dashboard data. Please try again.");
+      if (dashRes.status === "fulfilled") setData(dashRes.value.data);
+      if (reqRes.status === "fulfilled" && reqRes.value) setRequests(reqRes.value.data.results || reqRes.value.data || []);
+      if (invRes.status === "fulfilled" && invRes.value) setInvitations(invRes.value.data.results || invRes.value.data || []);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsLoading(false);
     }
-  }, [activeSlug, isAdmin, isPersonalContext]);
+  }, [activeSlug, isAdmin]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const handleOrgApproveRequest = async (id: number) => {
-    try {
-      await api.post(`/community/manage/requests/${id}/approve/`, {}, { headers: { "X-Organization-Slug": activeSlug } });
-      toast.success("Request approved!");
-      fetchDashboardData();
-    } catch { toast.error("Failed to approve."); }
-  };
-  const handleOrgRejectRequest = async (id: number) => {
-    try {
-      await api.post(`/community/manage/requests/${id}/reject/`, {}, { headers: { "X-Organization-Slug": activeSlug } });
-      toast.success("Rejected.");
-      fetchDashboardData();
-    } catch { toast.error("Failed to reject."); }
-  };
-  const handleOrgRevokeInvitation = async (id: number) => {
-    try {
-      await api.post(`/community/manage/invitations/${id}/revoke/`, {}, { headers: { "X-Organization-Slug": activeSlug } });
-      toast.success("Revoked.");
-      fetchDashboardData();
-    } catch { toast.error("Failed to revoke."); }
-  };
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(val || 0);
 
-  const handleUserAcceptInvite = async (id: number) => {
-    try {
-      await api.post(`/community/my-invitations/${id}/accept/`);
-      toast.success("Invitation Accepted!");
-      fetchDashboardData();
-    } catch (e: any) { toast.error(e.response?.data?.error || "Failed to accept."); }
-  };
-  const handleUserRejectInvite = async (id: number) => {
-    try {
-      await api.post(`/community/my-invitations/${id}/reject/`);
-      toast.success("Invitation Rejected.");
-      fetchDashboardData();
-    } catch { toast.error("Failed to reject."); }
-  };
-  const handleUserCancelRequest = async (id: number) => {
-    try {
-      await api.post(`/community/my-join-requests/${id}/cancel/`);
-      toast.success("Request cancelled.");
-      fetchDashboardData();
-    } catch { toast.error("Failed to cancel."); }
-  };
-
-  const formatCurrency = (amount: number | string | undefined) => {
-    const val = typeof amount === "string" ? parseFloat(amount) : Number(amount);
-    return new Intl.NumberFormat("en-KE", { style: "currency", currency: data?.currency || "KES", maximumFractionDigits: 0 }).format(val || 0);
-  };
-  
-  const getPath = (path: string) => (activeSlug ? `/${activeSlug}${path}` : path);
-  const createCourseHref = activeSlug ? `/${activeSlug}/create-course` : "/create-course";
-  const createEventHref = activeSlug ? `/${activeSlug}/create-event` : "/create-event";
-
-  if (isLoading && !data) return <DashboardLoading />;
-  if (error && !data) return <DashboardError error={error} onRetry={fetchDashboardData} />;
-
-  const showCommunitySection = (requests.length > 0 || invitations.length > 0) && (isPersonalContext || isAdmin);
-
-  return (
-    <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <DashboardHeader
-        createCourseHref={createCourseHref}
-        createEventHref={createEventHref}
-        activeSlug={activeSlug}
-        isAdmin={isAdmin}
-        isInviteOpen={isInviteOpen}
-        onOpenChange={setIsInviteOpen}
-        onSuccess={fetchDashboardData}
-      />
-
-      <MetricsGrid
-        context={data?.context}
-        metrics={data?.metrics}
-        formatCurrency={formatCurrency}
-      />
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 mb-10">
-        <UpcomingClassesCard classes={data?.upcoming_classes} getPath={getPath} />
-        <TopCoursesCard courses={data?.best_performing_courses} getPath={getPath} formatCurrency={formatCurrency} />
-      </div>
-
-      {showCommunitySection && (
-        <div className="mt-8">
-          <DashboardRequestManager
-            mode={isPersonalContext ? "personal" : "org"}
-            requests={requests}
-            invitations={invitations}
-            onApprove={handleOrgApproveRequest}
-            onReject={handleOrgRejectRequest}
-            onRevoke={handleOrgRevokeInvitation}
-            onAccept={handleUserAcceptInvite}
-            onDecline={handleUserRejectInvite}
-            onCancel={handleUserCancelRequest}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DashboardLoading() {
-  return <div className="flex h-[50vh] w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-}
-
-function DashboardError({ error, onRetry }: { error: string; onRetry: () => void }) {
-  return (
-    <div className="flex h-[50vh] w-full flex-col items-center justify-center gap-4">
-      <AlertCircle className="h-12 w-12 text-destructive" />
-      <p className="text-muted-foreground">{error}</p>
-      <Button variant="outline" onClick={onRetry}>Try Again</Button>
-    </div>
-  );
-}
-
-function DashboardHeader({ createCourseHref, createEventHref, activeSlug, isAdmin, isInviteOpen, onOpenChange, onSuccess }: any) {
-  return (
-    <div className="mb-8 flex flex-wrap justify-end gap-3">
-      <Button asChild variant="outline">
-        <Link href={createCourseHref} className="flex items-center gap-2"><Plus className="h-4 w-4" /> New Course</Link>
-      </Button>
-      {activeSlug && isAdmin && (
-        <>
-            <Button variant="outline" onClick={() => onOpenChange(true)} className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" /> Invite Member
-            </Button>
-            <InviteDialog isOpen={isInviteOpen} onOpenChange={onOpenChange} onSuccess={onSuccess} activeSlug={activeSlug} />
-        </>
-      )}
-      <Button asChild variant="outline">
-        <Link href={createEventHref} className="flex items-center gap-2"><Plus className="h-4 w-4" /> New Event</Link>
-      </Button>
-    </div>
-  );
-}
-
-function MetricsGrid({ metrics, context, formatCurrency }: any) {
-  return (
-    <div className="mb-10">
-      <h2 className="mb-6 text-xl font-semibold text-foreground">
-        {context === "Personal Tutor View" ? "Personal Summary" : "Organization Summary"}
-      </h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-        <MetricCard label="Total Courses" value={metrics?.total_courses} />
-        {(metrics?.active_tutors ?? 0) > 1 && <MetricCard label="Active Tutors" value={metrics?.active_tutors} />}
-        <MetricCard label="Active Students" value={metrics?.active_students} />
-        <MetricCard label="Total Revenue" value={formatCurrency(metrics?.total_revenue)} />
-        <MetricCard label="Upcoming Events" value={metrics?.upcoming_events_count} />
-      </div>
-    </div>
-  );
-}
-
-function MetricCard({ label, value }: any) {
-  return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <p className="mt-2 truncate text-3xl font-bold text-foreground">{value ?? "-"}</p>
-    </div>
-  );
-}
-
-function UpcomingClassesCard({ classes, getPath }: any) {
-  const router = useRouter();
-
-  const isJoinable = (dateStr: string, startTimeStr: string, endTimeStr: string) => {
+  const getJoinStatus = (dateStr: string, startTimeStr: string, endDatetimeStr: string) => {
     const now = new Date();
-    
     const start = new Date(`${dateStr}T${startTimeStr}`);
-    const end = new Date(`${dateStr}T${endTimeStr}`);
+    const end = new Date(endDatetimeStr);
+    const buffer = new Date(start.getTime() - 20 * 60 * 1000);
 
-    if (end < start) {
-        end.setDate(end.getDate() + 1);
+    return {
+      canJoin: now >= buffer && now < end,
+      isExpired: now >= end
+    };
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    try {
+      await api.post("/organizations/team/invite/", 
+        { email: formData.get('email'), role: formData.get('role') }, 
+        { headers: { "X-Organization-Slug": activeSlug } }
+      );
+      toast.success("Invitation sent");
+      setIsInviteOpen(false);
+      fetchAll();
+    } catch (err) { 
+      toast.error("Failed to send invite"); 
     }
-
-    const tenMinutesBeforeStart = new Date(start.getTime() - 10 * 60 * 1000);
-
-    return now >= tenMinutesBeforeStart && now < end;
   };
 
-  const handleJoin = (lessonId: number) => {
-    router.push(`/live-session/${lessonId}`); 
-  };
+  if (isLoading) return <DashboardSkeleton />;
 
   return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
-        <div className="mb-6 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-lg font-semibold"><Video className="h-5 w-5 text-teal-600"/> Upcoming Classes</h3>
-            <Link href={getPath("/live-classes")} className="text-sm font-medium text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-4 w-4"/></Link>
+    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-10">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-border pb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            {activeSlug ? "Organization Overview" : "Personal Dashboard"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Growth and scheduling insights at a glance.</p>
         </div>
-        {classes?.length ? (
-            <div className="divide-y divide-border">
-                {classes.map((c: any) => {
-                    const canJoin = isJoinable(c.date, c.start_time, c.end_time);
-                    return (
-                      <div
-                        key={c.id}
-                        className="flex flex-col md:flex-row md:items-center md:justify-between py-4 gap-3 border-b border-border/50 last:border-0"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-semibold text-foreground">{c.title}</p>
-                          
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className="text-xs font-normal text-muted-foreground border-border bg-background/50"
-                            >
-                              <Calendar className="w-3 h-3 mr-1" />
-                              {new Date(c.date).toLocaleDateString()}
-                            </Badge>
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {c.start_time}
-                            </span>
-                          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" asChild className="rounded-md shadow-none h-9">
+            <Link href={activeSlug ? `/${activeSlug}/courses/create` : "/courses/create"}>
+              <Plus size={16} className="mr-2" /> Course
+            </Link>
+          </Button>
+          {activeSlug && isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setIsInviteOpen(true)} className="rounded-md shadow-none h-9">
+              <UserPlus size={16} className="mr-2" /> Invite
+            </Button>
+          )}
+          <Button size="sm" asChild className="rounded-md shadow-none h-9">
+            <Link href={activeSlug ? `/${activeSlug}/events/create` : "/events/create"}>
+              <Plus size={16} className="mr-2" /> New Event
+            </Link>
+          </Button>
+        </div>
+      </div>
 
-                          <p className="text-xs text-muted-foreground/80">{c.course_title}</p>
-                        </div>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <KPICard title="Revenue" value={formatCurrency(data?.metrics.total_revenue || 0)} icon={DollarSign} color="bg-emerald-50 text-emerald-600" />
+        <KPICard title="Active Students" value={data?.metrics.active_students || 0} icon={Users} color="bg-blue-50 text-blue-600" />
+        <KPICard title="Live Classes" value={data?.upcoming_classes.length || 0} icon={Video} color="bg-amber-50 text-amber-600" />
+        <KPICard title="Upcoming Events" value={data?.metrics.upcoming_events || 0} icon={Calendar} color="bg-purple-50 text-purple-600" />
+      </div>
 
-                        {/* Button Section */}
-                        {canJoin && (
-                          <Button
-                            size="sm"
-                            className="w-fit shrink-0 bg-green-600 hover:bg-green-700 text-white shadow-sm transition-colors"
-                            onClick={() => handleJoin(c.id)}
-                          >
-                            <Video size={14} className="mr-2" /> Join Now
-                          </Button>
-                        )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Video className="h-5 w-5 text-primary" /> Live Sessions
+            </h3>
+            <Button variant="ghost" size="sm" asChild className="text-xs h-7 rounded-md">
+              <Link href={activeSlug ? `/${activeSlug}/live-classes` : "/live-classes"}>See All</Link>
+            </Button>
+          </div>
+          <div className="rounded-md border border-border bg-card shadow-none overflow-hidden divide-y divide-border">
+            {data?.upcoming_classes.filter(c => !getJoinStatus(c.date, c.start_time, c.end_datetime).isExpired).length ? (
+              data.upcoming_classes.map((cls) => {
+                const { canJoin, isExpired } = getJoinStatus(cls.date, cls.start_time, cls.end_datetime);
+                if (isExpired) return null;
+                return (
+                  <div key={cls.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm text-foreground">{cls.title}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{cls.course_title}</p>
+                      <div className="flex items-center gap-3 mt-1 text-[11px] text-muted-foreground font-medium">
+                        <span className="flex items-center gap-1"><Calendar size={12}/> {format(new Date(cls.date), "MMM d")}</span>
+                        <span className="flex items-center gap-1">🕒 {cls.start_time}</span>
                       </div>
-                    );
-                })}
+                    </div>
+                    {canJoin && (
+                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-md h-8 text-xs shadow-none px-4" onClick={() => router.push(`/live-session/${cls.id}`)}>
+                        Join Now
+                      </Button>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-10 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
+                <Inbox size={24} className="opacity-20"/>
+                No active classes today.
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" /> Upcoming Events
+            </h3>
+            <Button variant="ghost" size="sm" asChild className="text-xs h-7 rounded-md">
+              <Link href={activeSlug ? `/${activeSlug}/events` : "/events"}>View All</Link>
+            </Button>
+          </div>
+          <div className="rounded-md border border-border bg-card shadow-none overflow-hidden divide-y divide-border">
+            {data?.upcoming_events.length ? (
+              data.upcoming_events.map((ev) => (
+                <Link key={ev.id} href={activeSlug ? `/${activeSlug}/events/${ev.slug}` : `/events/${ev.slug}`} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
+                  <div className="h-10 w-10 bg-muted rounded-md overflow-hidden flex-shrink-0 border border-border">
+                    {ev.banner_image && <img src={ev.banner_image} className="w-full h-full object-cover" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate">{ev.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="outline" className="text-[9px] uppercase px-1.5 py-0 h-4 rounded-sm border-border bg-muted/20">{ev.event_type}</Badge>
+                      <span className="text-[11px] text-muted-foreground font-medium">{format(new Date(ev.start_time), "MMM d, h:mm a")}</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground opacity-50" />
+                </Link>
+              ))
+            ) : (
+              <div className="p-10 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
+                <Inbox size={24} className="opacity-20"/>
+                No scheduled events.
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <section className="space-y-4">
+        <h3 className="font-semibold text-lg px-1 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-primary" /> Top Curriculums
+        </h3>
+        <div className="rounded-md border border-border bg-card shadow-none overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b bg-muted/10">
+                  <th className="px-6 py-4 text-[11px] uppercase tracking-widest font-bold text-muted-foreground">Course Details</th>
+                  <th className="px-6 py-4 text-[11px] uppercase tracking-widest font-bold text-muted-foreground text-center">Enrolled</th>
+                  <th className="px-6 py-4 text-[11px] uppercase tracking-widest font-bold text-muted-foreground text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data?.best_performing_courses.length ? data.best_performing_courses.map((course) => (
+                  <tr key={course.id} className="hover:bg-muted/20 transition-colors group">
+                    <td className="px-6 py-4">
+                      <Link href={activeSlug ? `/${activeSlug}/courses/${course.slug}` : `/courses/${course.slug}`} className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-muted rounded-md overflow-hidden border border-border flex-shrink-0">
+                          {course.thumbnail && <img src={course.thumbnail} className="w-full h-full object-cover" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{course.title}</p>
+                          <div className="flex items-center gap-1 mt-0.5 text-amber-500 text-[10px] font-bold">
+                            <Star size={10} className="fill-amber-500" /> {course.rating_avg.toFixed(1)}
+                          </div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm font-medium">{course.student_count}</td>
+                    <td className="px-6 py-4 text-right text-sm font-bold text-emerald-600 font-mono">{formatCurrency(course.revenue)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={3} className="py-20 text-center text-muted-foreground text-sm">No course performance data available yet.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent className="w-[95vw] sm:max-w-[450px] p-0 gap-0 border-border/80 rounded-md bg-background shadow-none overflow-hidden [&>button]:hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-muted/30 flex flex-row items-center justify-between shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <div className="p-2 bg-background border border-border rounded-md shadow-none">
+                <UserPlus className="h-4 w-4 text-primary" />
+              </div>
+              Invite Team Member
+            </DialogTitle>
+            <DialogClose className="rounded-md p-1 hover:bg-muted transition-colors">
+              <X size={16} className="text-muted-foreground" />
+            </DialogClose>
+          </DialogHeader>
+          <form className="p-6 space-y-6" onSubmit={handleInviteSubmit}>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-0.5">Email Address</Label>
+              <Input name="email" type="email" placeholder="tutor@example.com" required className={inputStyles} />
             </div>
-        ) : <p className="text-sm text-muted-foreground italic text-center py-4">No upcoming classes.</p>}
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-0.5">Assigned Role</Label>
+              <Select name="role" defaultValue="tutor">
+                <SelectTrigger className={inputStyles}><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-md border-border shadow-none">
+                  <SelectItem value="tutor" className="text-sm">Tutor (Course Management)</SelectItem>
+                  <SelectItem value="admin" className="text-sm">Admin (Full Control)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="pt-2 border-t border-border pt-6 flex justify-end gap-3">
+               <Button type="button" variant="outline" size="sm" onClick={() => setIsInviteOpen(false)} className="rounded-md h-9 px-4">Cancel</Button>
+               <Button type="submit" size="sm" className="bg-primary text-primary-foreground rounded-md shadow-none h-9 px-4 font-bold">
+                Send Invite
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function TopCoursesCard({ courses, getPath, formatCurrency }: any) {
-  return (
-    <div className="rounded-lg border bg-card p-6 shadow-sm h-full">
-         <div className="mb-6 flex items-center justify-between">
-            <h3 className="flex items-center gap-2 text-lg font-semibold"><TrendingUp className="h-5 w-5 text-green-600"/> Top Courses</h3>
-            <Link href={getPath("/courses")} className="text-sm font-medium text-primary hover:underline flex items-center gap-1">View all <ArrowRight className="h-4 w-4"/></Link>
-        </div>
-        {courses?.length ? (
-            <div className="divide-y divide-border">
-                {courses.map((c: any) => (
-                    <div key={c.id} className="flex items-center gap-4 py-3">
-                        <div className="h-10 w-10 bg-muted rounded overflow-hidden flex-shrink-0">
-                             {c.thumbnail && <img src={c.thumbnail} className="h-full w-full object-cover"/>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <Link href={getPath(`/courses/${c.slug}`)} className="block truncate font-medium hover:underline">{c.title}</Link>
-                            <div className="flex gap-4 text-xs text-muted-foreground mt-1">
-                                <span>👥 {c.student_count}</span>
-                                <span>💰 {formatCurrency(c.revenue)}</span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        ) : <p className="text-sm text-muted-foreground italic text-center py-4">No data yet.</p>}
-    </div>
-  );
-}
-
-interface RequestManagerProps { 
-    mode: "personal" | "org";
-    requests: RequestItem[]; 
-    invitations: InvitationItem[]; 
-    onApprove?: any; onReject?: any; onRevoke?: any;
-    onAccept?: any; onDecline?: any; onCancel?: any;
-}
-
-function DashboardRequestManager({ mode, requests, invitations, onApprove, onReject, onRevoke, onAccept, onDecline, onCancel }: RequestManagerProps) {
-    if(requests.length === 0 && invitations.length === 0) return null;
-    
-    return (
-        <Tabs defaultValue={invitations.length > 0 ? "invitations" : "requests"} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted rounded-lg">
-                <TabsTrigger 
-                    value="invitations" 
-                    className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all"
-                >
-                    <Mail className="h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                        {mode === "personal" ? "My Invitations" : "Sent Invitations"} 
-                        {invitations.length > 0 && ` (${invitations.length})`}
-                    </span>
-                </TabsTrigger>
-                <TabsTrigger 
-                    value="requests" 
-                    className="flex items-center justify-center gap-2 py-2 text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-md transition-all"
-                >
-                    <Send className="h-4 w-4 shrink-0" />
-                    <span className="truncate">
-                        {mode === "personal" ? "My Sent Requests" : "Join Requests"}
-                        {requests.length > 0 && ` (${requests.length})`}
-                    </span>
-                </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="invitations" className="mt-6">
-                <InvitationList mode={mode} invitations={invitations} onRevoke={onRevoke} onAccept={onAccept} onDecline={onDecline} />
-            </TabsContent>
-
-            <TabsContent value="requests" className="mt-6">
-                <RequestList mode={mode} requests={requests} onApprove={onApprove} onReject={onReject} onCancel={onCancel} />
-            </TabsContent>
-        </Tabs>
-    )
-}
-
-function RequestList({ mode, requests, onApprove, onReject, onCancel }: any) {
-    if(!requests.length) return <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/50"><Inbox className="h-8 w-8 mx-auto mb-2 text-muted-foreground"/><p>No requests found.</p></div>
-    
-    return (
-        <div className="space-y-4">
-            {requests.map((r: RequestItem) => (
-                <div key={r.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        {mode === "org" ? (
-                            <>
-                                <p className="font-medium flex items-center gap-2 text-gray-900">
-                                    <User className="w-4 h-4 text-muted-foreground"/> 
-                                    {r.user?.full_name || r.user?.username} 
-                                </p>
-                                <p className="text-sm text-gray-500">{r.user?.email}</p>
-                                {r.message && <p className="text-sm text-muted-foreground mt-1 italic">"{r.message}"</p>}
-                            </>
-                        ) : (
-                            <>
-                                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-muted-foreground"/> 
-                                    Request to join {r.organization?.name}
-                                </h3>
-                                <p className="text-sm text-gray-600 mt-1">Status: <Badge variant="secondary" className="capitalize">{r.status}</Badge></p>
-                            </>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2">Date: {new Date(r.created_at).toLocaleDateString()}</p>
-                    </div>
-                    
-                    <div className="flex gap-2 shrink-0">
-                        {mode === "org" ? (
-                            <>
-                                <Button size="sm" variant="outline" onClick={()=>onReject(r.id)}><UserX className="h-4 w-4 mr-2"/>Reject</Button>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={()=>onApprove(r.id)}><UserCheck className="h-4 w-4 mr-2"/>Approve</Button>
-                            </>
-                        ) : (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button size="sm" variant="destructive"><Trash2 className="h-4 w-4 mr-2"/>Cancel Request</Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Cancel Join Request?</AlertDialogTitle>
-                                        <AlertDialogDescription>Are you sure you want to cancel this request?</AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Back</AlertDialogCancel>
-                                        <AlertDialogAction onClick={()=>onCancel(r.id)}>Yes, Cancel</AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function InvitationList({ mode, invitations, onRevoke, onAccept, onDecline }: any) {
-    if(!invitations.length) return <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/50"><Inbox className="h-8 w-8 mx-auto mb-2 text-muted-foreground"/><p>No invitations found.</p></div>
-    
-    return (
-        <div className="space-y-4">
-            {invitations.map((i: InvitationItem) => (
-                <div key={i.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        {mode === "org" ? (
-                            <>
-                                <p className="font-medium flex items-center gap-2 text-gray-900">
-                                    <User className="w-4 h-4 text-muted-foreground"/> 
-                                    {i.invited_user?.full_name || i.invited_user?.username} 
-                                </p>
-                                <p className="text-sm text-gray-500">{i.invited_user?.email}</p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="text-sm text-gray-500">From {i.invited_by?.username || "Admin"}</p>
-                                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-muted-foreground"/> 
-                                    Join {i.organization?.name}
-                                </h3>
-                            </>
-                        )}
-                        
-                        <div className="flex items-center gap-2 mt-1">
-                            <Badge variant="outline" className="capitalize">{i.role}</Badge>
-                            <span className="text-xs text-muted-foreground">Sent: {new Date(i.created_at).toLocaleDateString()}</span>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-2 shrink-0">
-                        {mode === "org" ? (
-                            <Button size="sm" variant="destructive" onClick={()=>onRevoke(i.id)}><Trash2 className="h-4 w-4 mr-2"/>Revoke</Button>
-                        ) : (
-                            <>
-                                <Button size="sm" variant="outline" onClick={()=>onDecline(i.id)}><UserX className="h-4 w-4 mr-2"/>Decline</Button>
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={()=>onAccept(i.id)}><UserCheck className="h-4 w-4 mr-2"/>Accept</Button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function InviteDialog({ isOpen, onOpenChange, onSuccess, activeSlug }: any) {
-    const [email, setEmail] = useState("");
-    const [role, setRole] = useState("tutor");
-    const [loading, setLoading] = useState(false);
-    
-    const submit = async (e: any) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            await api.post("/organizations/team/invite/", {email, role}, {headers: {"X-Organization-Slug": activeSlug}});
-            toast.success("Invitation sent successfully.");
-            setEmail("");
-            onOpenChange(false);
-            onSuccess();
-        } catch(e: any) { 
-            toast.error(e.response?.data?.error || "Failed to send invitation."); 
-        } finally { 
-            setLoading(false); 
-        }
-    }
-    
-    return (
-        <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Invite New Member</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={submit} className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" placeholder="user@example.com" value={email} onChange={e=>setEmail(e.target.value)} required/>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Role</Label>
-                        <Select value={role} onValueChange={setRole}>
-                            <SelectTrigger><SelectValue/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="tutor">Tutor</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button type="submit" disabled={loading} className="w-full mt-2">
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <UserPlus className="h-4 w-4 mr-2"/>}
-                        {loading ? "Sending..." : "Send Invitation"}
-                    </Button>
-                </form>
-            </DialogContent>
-        </Dialog>
-    )
 }

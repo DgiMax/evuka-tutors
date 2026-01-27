@@ -15,22 +15,18 @@ export default function GlobalUILayout({ children, slug = null }: GlobalUILayout
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Top Navbar */}
+    <div className="flex min-h-screen bg-gray-50">
       <TopNav isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
 
-      {/* Sidebar */}
       <SidebarNav isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
 
-      {/* Main content */}
-      <main className="flex-1 pt-14">
-        <div className="bg-gray-50 min-h-screen pb-4">
-        <OrgContextUpdater slug={slug} />
-        {children}
+      <main className="flex-1 flex flex-col pt-14 w-full">
+        <div className="flex-1 pb-4">
+            <OrgContextUpdater slug={slug} />
+            {children}
         </div>
       </main>
 
-      {/* Toaster */}
       <Toaster richColors position="top-right" />
     </div>
   );

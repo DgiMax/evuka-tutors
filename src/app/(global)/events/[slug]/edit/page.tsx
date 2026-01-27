@@ -1,14 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import CreateEventPage from "@/components/events/CreateEventPage"; // ⬅️ Adjust this import path
+import CreateEventPage from "@/components/events/CreateEventPage";
 import { Loader2 } from "lucide-react";
 
 export default function EventEditPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  // Handle case where slug might not be ready
   if (!slug) {
     return (
       <div className="flex justify-center items-center h-screen">

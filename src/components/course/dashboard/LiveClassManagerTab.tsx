@@ -62,10 +62,10 @@ const LiveClassManagerTab: React.FC<LiveClassTabProps> = ({
   const createLink = `/courses/${courseSlug}/live-classes/create`;
 
   return (
-    <Card className="mx-4 sm:mx-auto my-4 mt-0 p-0 border border-border shadow-none sm:shadow-sm">
+    <Card className="border border-border shadow-none p-3 md:p-6 rounded-t-md rounded-b-lg">
       {/* Header */}
-      <CardHeader className="p-6 p-6 bg-muted/10 border-b">
-        <div>
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-0 gap-4">
+        <div className="space-y-1">
           <CardTitle className="text-xl font-bold">Live Class Series</CardTitle>
           <CardDescription className="mt-1">
             Schedule and manage your recurring live sessions.
@@ -78,7 +78,7 @@ const LiveClassManagerTab: React.FC<LiveClassTabProps> = ({
         </Link>
       </CardHeader>
 
-      <CardContent className="px-4 sm:px-6 py-2 space-y-8">
+      <CardContent className="px-0 space-y-8">
         {liveClasses.length === 0 ? (
           <EmptyState
             message="No live class series scheduled for this course."

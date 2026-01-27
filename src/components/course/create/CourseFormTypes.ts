@@ -1,19 +1,18 @@
-// app/(tutor)/courses/create/CourseFormTypes.ts
-
 import * as z from "zod";
 import { Info, BookOpen, FileImage, DollarSign } from "lucide-react";
 
-// --- Form Options ---
 export interface DropdownOption {
   id: string;
   name: string;
 }
+
 export interface SubCategoryOption {
   id: string;
   name: string;
   parent_id: string;
   slug: string;
 }
+
 export interface FormOptionsData {
   globalCategories: DropdownOption[];
   globalSubCategories: SubCategoryOption[];
@@ -23,7 +22,6 @@ export interface FormOptionsData {
   context: "global" | "organization";
 }
 
-// --- Status ---
 export type CourseStatus = "draft" | "pending_review" | "published";
 
 export const statusOptions: Record<CourseStatus, string> = {
@@ -32,7 +30,6 @@ export const statusOptions: Record<CourseStatus, string> = {
   published: "Published",
 };
 
-// --- Helper ---
 export const getExistingFileUrl = (fieldValue: string | null): string | null => {
   if (
     typeof fieldValue === "string" &&
@@ -43,96 +40,171 @@ export const getExistingFileUrl = (fieldValue: string | null): string | null => 
   return null;
 };
 
-// --- Zod Schemas ---
-
 const OptionSchema = z.object({
   id: z.number().optional(),
-  text: z.string().min(1, "Option text is required."),
+  text: z.string().optional().nullable(),
   is_correct: z.boolean().default(false),
 });
 
 const QuestionSchema = z.object({
   id: z.number().optional(),
-  text: z.string().min(1, "Question text is required."),
+  text: z.string().optional().nullable(),
   question_type: z.enum(["mcq", "text"]).default("mcq"),
-  score_weight: z.number().min(1, "Score must be at least 1.").default(1),
+  score_weight: z.number().min(0).default(1),
   order: z.number().optional(),
-  instructor_hint: z.string().optional(),
-  options: z.array(OptionSchema).optional(),
+  instructor_hint: z.string().optional().nullable(),
+  options: z.array(OptionSchema).optional().nullable(),
 });
 
 const QuizSchema = z.object({
   id: z.number().optional(),
-  title: z.string().min(3, "Quiz title is required."),
-  description: z.string().max(500).optional(),
+  title: z.string().optional().nullable(),
+  description: z.string().max(500).optional().nullable(),
   order: z.number().optional(),
-  max_score: z.number().min(1, "Max score must be at least 1.").default(10),
+  max_score: z.number().min(0).default(10),
   time_limit_minutes: z.number().optional().nullable(),
-  max_attempts: z.number().min(1, "Attempts must be at least 1.").default(3),
-  questions: z
-    .array(QuestionSchema)
-    .min(1, "A quiz must have at least one question."),
+  max_attempts: z.number().min(0).default(3),
+  questions: z.array(QuestionSchema).optional().nullable(),
 });
 
 const AssignmentSchema = z.object({
   id: z.number().optional(),
-  title: z.string().min(5, "Assignment title is required."),
-  description: z.string().min(10, "Description is required."),
+  title: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
   due_date: z.string().optional().nullable(),
-  max_score: z.number().min(1, "Max score is required.").default(100),
+  max_score: z.number().min(0).default(100),
+});
+
+const ResourceSchema = z.object({
+  id: z.number().optional(),
+  title: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  resource_type: z.enum(['file', 'link', 'book_ref']),
+  file: z.any().optional().nullable(),
+  external_url: z.string().optional().nullable().or(z.literal("")),
+  
+  // UPDATED: Changed from number to string to support UUIDs
+  course_book: z.string().optional().nullable(), 
+  // ADDED: To match the backend's write_only field requirement
+  book_id: z.string().optional().nullable(),
+  
+  reading_instructions: z.string().optional().nullable(),
 });
 
 export const courseFormSchema = z.object({
-  title: z
-    .string()
-    .min(5, "Title must be at least 5 characters.")
-    .max(100),
-  short_description: z
-    .string()
-    .min(10, "Too short!")
-    .max(200, "Keep it under 200 characters."),
-  long_description: z
-    .string()
-    .min(50, "Please provide a detailed description."),
-  learning_objectives: z
-    .array(z.object({ value: z.string().min(10, "Objective is too short.") }))
-    .min(2, "Add at least 2 objectives.")
-    .max(10, "Maximum 10 objectives allowed."),
-  global_category: z.string().min(1, "Marketplace category is required."),
-  global_subcategory: z.string().min(1, "Marketplace subcategory is required."),
-  global_level: z.string().min(1, "Difficulty level is required."),
-  org_category: z.string().optional(),
-  org_level: z.string().optional(),
-  thumbnail: z.any().optional(),
-  promo_video: z.any().optional(),
-  price: z.number().optional(),
+  title: z.string().min(1, "Title is required for drafts.").max(100),
+  short_description: z.string().optional().nullable(),
+  long_description: z.string().optional().nullable(),
+  learning_objectives: z.array(z.object({ value: z.string() })).optional(),
+  
+  global_category: z.string().optional().nullable(),
+  global_subcategory: z.string().optional().nullable(),
+  global_level: z.string().optional().nullable(),
+  org_category: z.string().optional().nullable(),
+  org_level: z.string().optional().nullable(),
+  
+  thumbnail: z.any().optional().nullable(),
+  promo_video: z.any().optional().nullable(),
+  
+  price: z.number().min(0).optional().default(0),
   status: z.enum(["draft", "pending_review", "published"]).default("draft"),
+  
+  instructors: z.array(z.number()).optional(),
+
   modules: z
     .array(
       z.object({
-        id: z.number().optional(), // Keep ID for edits
-        title: z.string().min(3, "Module title is required.").max(100),
-        description: z.string().max(500).optional(),
+        id: z.number().optional(),
+        title: z.string().optional().nullable(),
+        description: z.string().optional().nullable(),
         assignments: z.array(AssignmentSchema).optional(),
         lessons: z
           .array(
             z.object({
-              id: z.number().optional(), // Keep ID for edits
-              title: z.string().min(3, "Lesson title is required.").max(100),
-              content: z.string().optional(),
-              video_file: z.any().optional(),
+              id: z.number().optional(),
+              title: z.string().optional().nullable(),
+              content: z.string().optional().nullable(),
+              video_file: z.any().optional().nullable(),
               quizzes: z.array(QuizSchema).optional(),
+              resources: z.array(ResourceSchema).optional(),
             })
           )
-          .min(1, "Module must have at least one lesson."),
+          .optional(),
       })
     )
-    .min(1, "Course must have at least one module."),
+    .optional(),
+})
+.superRefine((data, ctx) => {
+  if (data.status !== 'draft') {
+    if (!data.short_description || data.short_description.length < 10) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Short description is required for publishing (min 10 chars).",
+        path: ["short_description"],
+      });
+    }
+    if (!data.long_description || data.long_description.length < 50) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Detailed description is required for publishing (min 50 chars).",
+        path: ["long_description"],
+      });
+    }
+    if (!data.global_category) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Category is required.", path: ["global_category"] });
+    }
+    if (!data.global_subcategory) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Subcategory is required.", path: ["global_subcategory"] });
+    }
+    if (!data.global_level) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Level is required.", path: ["global_level"] });
+    }
+    if (!data.learning_objectives || data.learning_objectives.length < 2 || data.learning_objectives.some(o => o.value.length < 5)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least 2 valid learning objectives are required.",
+        path: ["learning_objectives"],
+      });
+    }
+    if (!data.thumbnail) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Thumbnail is required.", path: ["thumbnail"] });
+    }
+    
+    if (!data.modules || data.modules.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Course must have at least one module.", path: ["modules"] });
+    } else {
+      data.modules.forEach((mod, mIndex) => {
+        if (!mod.title || mod.title.length < 3) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Module title is required for publishing.",
+              path: ["modules", mIndex, "title"],
+            });
+        }
+        if (!mod.lessons || mod.lessons.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Module "${mod.title}" must have at least one lesson.`,
+            path: ["modules", mIndex, "lessons"],
+          });
+        } else {
+            mod.lessons.forEach((lesson, lIndex) => {
+                if (!lesson.title || lesson.title.length < 3) {
+                    ctx.addIssue({
+                      code: z.ZodIssueCode.custom,
+                      message: "Lesson title is required for publishing.",
+                      path: ["modules", mIndex, "lessons", lIndex, "title"],
+                    });
+                }
+            })
+        }
+      });
+    }
+  }
 });
 
 export type CourseFormValues = z.infer<typeof courseFormSchema>;
 
-// --- Stepper Config ---
 export const steps = [
   {
     id: 1,
@@ -148,9 +220,15 @@ export const steps = [
       "global_level",
       "org_category",
       "org_level",
+      "instructors"
     ] as const,
   },
-  { id: 2, name: "Curriculum", icon: BookOpen, fields: ["modules"] as const },
+  { 
+    id: 2, 
+    name: "Curriculum", 
+    icon: BookOpen, 
+    fields: ["modules"] as const 
+  },
   {
     id: 3,
     name: "Media",
