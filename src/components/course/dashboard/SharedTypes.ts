@@ -169,7 +169,6 @@ export const ResourceCreateSchema = z.object({
   resource_type: z.enum(["file", "link", "book_ref"]),
   file: z.any().optional(),
   external_url: z.string().optional().or(z.literal("")),
-  // UPDATED: Supports UUID strings for book selection
   course_book: z.string().optional().nullable(),
   book_id: z.string().optional().nullable(),
   reading_instructions: z.string().optional(),

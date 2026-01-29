@@ -157,7 +157,7 @@ export default function OrganizationListPage() {
                                     {org.name}
                                 </CardTitle>
                                 <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-[10px] uppercase tracking-wider font-medium text-muted-foreground flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-md">
+                                    <span className="text-[10px] uppercase tracking-wider font-medium text-white flex items-center gap-1.5 bg-secondary/50 px-2 py-0.5 rounded-md">
                                         {getTypeIcon(org.org_type)}
                                         {org.org_type}
                                     </span>
@@ -183,7 +183,7 @@ export default function OrganizationListPage() {
                                     <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => window.open(`/${org.slug}`, '_blank')} className="cursor-pointer">
+                                <DropdownMenuItem onClick={() => window.open(`/organizations/${org.slug}/preview`, '_blank')} className="cursor-pointer">
                                     <ExternalLink className="mr-2 h-4 w-4" /> Public Page
                                 </DropdownMenuItem>
                             </DropdownMenuContent>

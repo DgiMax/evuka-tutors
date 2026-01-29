@@ -1,290 +1,451 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { CourseModulesClient } from "@/components/course/CourseModulesClient";
 import { CoursePreviewActions } from '@/components/course/CoursePreviewActions';
 import api from "@/lib/api/axios";
-import { useAuth } from "@/context/AuthContext";
-import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
+import { cn } from "@/lib/utils";
+import { 
+  Star, ChevronDown, ChevronUp, PlayCircle, 
+  CheckCircle2, BookOpen, Globe, Info, X, Users, Award, Verified,
+  InboxIcon,
+  UserCheck2,
+  ArrowLeft
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
-// --- ICONS ---
-const StarIcon = ({ filled = true, className = "w-5 h-5" }: { filled?: boolean, className?: string }) => (
-  <svg className={`${className} ${filled ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.448a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118l-3.368-2.448a1 1 0 00-1.176 0l-3.368 2.448c-.784.57-1.838-.197-1.54-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.05 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-  </svg>
-);
-
-const PointIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="#000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0"/></svg>
-);
-
-// --- TYPES ---
-type Lesson = {
-  title: string;
-  is_preview: boolean;
-  estimated_duration_minutes: number;
-};
-
-type Module = {
-  title: string;
-  description: string;
-  lessons_count: number;
-  lessons: Lesson[];
-};
-
-export type CourseDetails = {
-  slug: string;
-  title: string;
-  short_description: string;
-  long_description: string;
-  learning_objectives: string[];
-  promo_video: string;
-  thumbnail: string;
-  instructor: {
-    instructor_name: string;
-    bio: string;
-  };
-  organization_name: string;
-  category: { name: string; slug: string };
-  level: { name: string };
-  price: string;
-  rating_avg: number;
-  num_students: number;
-  num_ratings: number;
-  modules: Module[];
-  is_enrolled: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-// --- SUB-COMPONENTS ---
-
-const PreviewStickySidebar = ({ course }: { course: CourseDetails }) => (
-  <div className="sticky top-16">
-    <div className="border border-gray-200 rounded bg-white p-6 shadow">
-      <div className="flex justify-between items-center mb-4">
-         <p className="text-xs text-gray-500">
-           Updated {new Date(course.updated_at).toLocaleDateString()}
-         </p>
-         <span className="px-2 py-1 text-xs font-medium uppercase tracking-wider text-gray-600 bg-gray-100 rounded-full">
-             {course.level?.name || 'All Levels'}
-         </span>
-      </div>
-
-      <div className="mb-4">
-         <div className="flex items-center mb-2">
-            <span className="text-3xl font-bold text-gray-900 mr-2">
-               {Number(course.price) > 0 ? `KES ${course.price}` : 'Free'}
-            </span>
-         </div>
-         <div className="flex items-center text-sm text-gray-600">
-            <div className="flex items-center mr-4">
-                {[...Array(5)].map((_, i) => (
-                  <StarIcon key={i} filled={i < Math.round(course.rating_avg)} className="w-4 h-4" />
-                ))}
-                <span className="ml-1">({course.rating_avg.toFixed(1)})</span>
-            </div>
-            <span>{course.num_students} students</span>
-         </div>
-      </div>
-      
-      {/* Tutor Actions */}
-      <CoursePreviewActions slug={course.slug} />
-    </div>
-  </div>
-);
-
-const LearningObjectives = ({ objectives }: { objectives: string[] }) => (
-  <div className="border border-gray-200 rounded p-6 my-8 bg-white shadow">
-    <h2 className="text-xl font-bold mb-4 text-gray-900">What students will learn</h2>
-    <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-gray-700">
-      {objectives?.length ? (
-        objectives.map((obj, index) => (
-          <li key={index} className="flex items-start">
-            <PointIcon className="w-5 h-5 text-[#2694C6] mr-3 mt-0.5 flex-shrink-0" />
-            <span>{obj}</span>
-          </li>
-        ))
+const PreviewStickySidebar = ({ course }: { course: any }) => (
+  <div className="relative lg:sticky lg:top-20 border-2 border-border rounded-md bg-card overflow-hidden w-full">
+    <div className={`aspect-video bg-muted relative border-b border-border flex items-center justify-center group ${course?.promo_video ? "cursor-pointer" : "cursor-default"}`}>
+      {course?.thumbnail ? (
+        <img src={course.thumbnail} alt="Preview" className="w-full h-full object-cover" />
       ) : (
-        <li className="text-gray-500 italic">No learning objectives added yet.</li>
+        <BookOpen className="h-10 w-10 text-muted-foreground/20" />
       )}
-    </ul>
-  </div>
-);
+      
+      {course?.promo_video && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <PlayCircle size={48} className="text-white" />
+        </div>
+      )}
+    </div>
+    
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="space-y-1">
+        <h3 className="text-2xl md:text-3xl font-black text-foreground">
+          {Number(course?.price || 0) > 0 ? `KES ${Number(course.price).toLocaleString()}` : 'Free'}
+        </h3>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#2694C6]">Full Lifetime Access</p>
+      </div>
 
-const CourseDescription = ({ description }: { description: string }) => (
-  <div className="bg-white rounded p-6 border border-gray-200 shadow mb-8">
-    <h2 className="text-2xl font-bold mb-4 text-gray-900">Description</h2>
-    <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">
-      {description || <span className="text-gray-500 italic">No description available.</span>}
+      <CoursePreviewActions slug={course?.slug} />
     </div>
   </div>
 );
-
-const CourseDetailsLoading = () => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 animate-pulse">
-    <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
-      <aside className="mt-8 lg:mt-0 order-2 lg:order-1 lg:col-span-1">
-         <div className="sticky top-4">
-            <div className="h-16 bg-amber-50 rounded-md mb-4 w-full"></div>
-            <div className="border border-gray-200 rounded-lg bg-white p-6 h-64">
-               <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
-               <div className="h-10 bg-gray-200 rounded w-3/4 mb-6"></div>
-               <div className="h-12 bg-gray-200 rounded w-full mb-2"></div>
-               <div className="h-12 bg-gray-200 rounded w-full"></div>
-            </div>
-         </div>
-      </aside>
-      <main className="lg:col-span-2 order-1 lg:order-2">
-        <div className="aspect-video bg-gray-200 rounded-lg mb-8"></div>
-        <div className="h-10 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div className="h-6 bg-gray-200 rounded w-full mb-8"></div>
-        <div className="border border-gray-200 rounded-lg p-6 h-48 mb-8"></div>
-      </main>
-    </div>
-  </div>
-);
-
-// --- MAIN PAGE COMPONENT ---
 
 export default function CoursePreviewDetailView() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
-  const { activeSlug } = useActiveOrg();
-
-  const [course, setCourse] = useState<CourseDetails | null>(null);
+  const [course, setCourse] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { loading: authLoading } = useAuth();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [tutorProfile, setTutorProfile] = useState<any | null>(null);
+  const [isTutorModalOpen, setIsTutorModalOpen] = useState(false);
+  const [loadingTutor, setLoadingTutor] = useState(false);
+  const [isBioExpanded, setIsBioExpanded] = useState(false);
+
+  const descriptionThreshold = 800;
+  const isLongDescription = (course?.long_description?.length || 0) > descriptionThreshold;
 
   useEffect(() => {
-    if (slug && !authLoading) {
-      const fetchCourseData = async () => {
-        setLoading(true);
-        try {
-          // Use the specific preview endpoint for tutors
-          const res = await api.get(`/courses/${slug}/preview-details/`);
-          setCourse(res.data);
-        } catch (err: any) {
-          console.error(err);
-          if (err.response && err.response.status === 404) {
-             setError("Course not found, or you do not have permission to preview it.");
-          } else {
-             setError("Failed to load course preview.");
-          }
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchCourseData();
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/courses/${slug}/preview-details/`);
+        setCourse(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [slug]);
+
+  const handleOpenTutorProfile = async () => {
+    if (!course?.instructor?.username) return;
+    setIsTutorModalOpen(true);
+    setLoadingTutor(true);
+    try {
+      const res = await api.get(`/users/tutor/${course.instructor.username}/`);
+      setTutorProfile(res.data);
+    } catch (err) {
+      console.error("Failed to load tutor profile");
+    } finally {
+      setLoadingTutor(false);
     }
-  }, [slug, authLoading, activeSlug]);
+  };
 
-  if (loading || authLoading) {
-    return (
-      <div className="bg-gray-50 min-h-screen">
-        <CourseDetailsLoading />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-sm border border-red-100 max-w-md text-center">
-            <svg className="h-12 w-12 text-red-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Preview</h3>
-            <p className="text-gray-500">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!course) return null;
+  if (loading) return <CourseDetailsSkeleton />;
 
   return (
-    <div className="bg-gray-50 min-h-screen font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 pb-16">
-        <div className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-4 shadow">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              {/* Info Icon */}
-              <svg className="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
+    <div className="bg-white min-h-screen">
+      <div className="bg-[#1C1D1F] text-white py-10 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-6">
+            <Button
+              onClick={() => router.push(`/courses/${slug}`)}
+              variant="ghost"
+              className="group flex items-center gap-2 text-gray-300 hover:text-white p-0 hover:bg-transparent font-black uppercase text-[10px] tracking-widest transition-all"
+            >
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              Back to Management
+            </Button>
+          </div>
+          <div className="lg:w-2/3 space-y-4">
+            <Badge className="bg-[#2694C6] text-white rounded-sm border-none font-black text-[10px] uppercase">
+              {course?.category?.name || "Professional Course"}
+            </Badge>
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+              {course?.title}
+            </h1>
+            <p className="text-base md:text-lg lg:text-xl text-gray-300 font-normal max-w-3xl">
+              {course?.short_description}
+            </p>
+            
+            <div className="flex flex-wrap items-center gap-x-4 md:gap-x-6 gap-y-3 pt-2 text-xs md:text-sm font-bold">
+              <div className="flex items-center gap-1.5 text-amber-400">
+                <span>{(course?.rating_avg ?? 0).toFixed(1)}</span>
+                <Star size={14} className="fill-amber-400" />
+                <span className="text-gray-400 underline decoration-dotted font-medium">
+                  ({(course?.num_ratings ?? 0).toLocaleString()} ratings)
+                </span>
+              </div>
+              <div className="text-white">
+                {(course?.num_students ?? 0).toLocaleString()} students
+              </div>
+              <div className="text-gray-400">
+                Created by <span onClick={handleOpenTutorProfile} className="text-[#2694C6] underline underline-offset-4 decoration-1 font-black cursor-pointer">{course?.instructor?.instructor_name}</span>
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm text-amber-700 font-medium">
-                Tutor Preview Mode
-              </p>
-              <p className="text-xs text-amber-600 mt-1">
-                This is how students will see your course landing page.
-              </p>
+
+            <div className="flex flex-wrap items-center gap-4 text-[10px] md:text-xs font-bold text-gray-400">
+               <div className="flex items-center gap-1.5"><Info size={14} /> Last updated {new Date(course?.updated_at).toLocaleDateString()}</div>
+               <div className="flex items-center gap-1.5"><Globe size={14} /> English</div>
             </div>
           </div>
         </div>
-        <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8 lg:gap-12">
           
-          {/* Right Sidebar for Tutor Actions */}
-          <aside className="mt-8 lg:mt-0 order-2 lg:order-2 lg:col-span-1">
+          <aside className="order-1 lg:order-2 lg:col-span-1 mt-6 lg:-mt-64 z-10 w-full max-w-md lg:max-w-none mx-auto lg:mx-0">
             <PreviewStickySidebar course={course} />
           </aside>
 
-          {/* Main Content Left */}
-          <main className="lg:col-span-2 order-1 lg:order-1">
-             {/* Video/Thumbnail Area */}
-            <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden mb-8 shadow-sm flex items-center justify-center relative">
-               {course.promo_video || course.thumbnail ? (
-                   <img
-                    src={course.promo_video || course.thumbnail}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-               ) : (
-                   <div className="text-gray-500 flex flex-col items-center">
-                       <svg className="w-16 h-16 mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                       <span>No media uploaded</span>
-                   </div>
-               )}
+          <main className="order-2 lg:order-1 lg:col-span-2 py-8 md:py-12 space-y-10 md:space-y-12">
+            <div className="border border-border rounded-md p-5 md:p-8 bg-card">
+              <h2 className="text-lg md:text-xl font-black text-foreground mb-6">What you&apos;ll learn</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {course?.learning_objectives?.map((obj: string, i: number) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <CheckCircle2 size={18} className="text-[#2694C6] shrink-0 mt-0.5" />
+                    <span className="text-sm font-medium text-muted-foreground leading-relaxed">{obj}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Header Info */}
-            <div className="bg-white rounded p-8 shadow border border-gray-200 mb-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">{course.title}</h1>
-                <p className="text-md text-gray-600 mb-6 leading-relaxed">{course.short_description}</p>
-                
-                <div className="flex flex-wrap items-center text-sm text-gray-500 pt-6 border-t border-gray-100">
-                    <div className="mr-6 mb-2">
-                        <span className="text-gray-400 mr-2">Instructor:</span>
-                        <span className="font-semibold text-gray-900">{course.instructor?.instructor_name}</span>
-                    </div>
-                    <div className="mr-6 mb-2">
-                        <span className="text-gray-400 mr-2">Category:</span>
-                        <span className="font-semibold text-gray-900">{course.category?.name || 'Uncategorized'}</span>
-                    </div>
-                    {course.organization_name && (
-                        <div className="mb-2">
-                            <span className="text-gray-400 mr-2">Organization:</span>
-                            <span className="font-semibold text-[#2694C6]">{course.organization_name}</span>
-                        </div>
-                    )}
+            <div className="w-full overflow-hidden">
+              <CourseModulesClient modules={course?.modules || []} />
+            </div>
+
+            <div className="space-y-6">
+              <h2 className="text-xl font-black text-foreground uppercase tracking-widest border-b border-border pb-4">
+                Description
+              </h2>
+
+              <div className="relative">
+                <div
+                  className={cn(
+                    "prose prose-sm max-w-none text-muted-foreground font-medium leading-relaxed transition-all duration-500 ease-in-out",
+                    !isExpanded && isLongDescription ? "max-h-80 overflow-hidden" : "max-h-full"
+                  )}
+                >
+                  <ReactMarkdown>
+                    {course?.long_description || "No description provided."}
+                  </ReactMarkdown>
                 </div>
+
+                {!isExpanded && isLongDescription && (
+                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
+                )}
+              </div>
+
+              {isLongDescription && (
+                <button
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  className="flex items-center gap-2 text-[#2694C6] font-black uppercase text-[11px] tracking-widest hover:text-[#1e7ca8] transition-colors group"
+                >
+                  {isExpanded ? (
+                    <>
+                      Show Less 
+                      <ChevronUp size={14} className="group-hover:-translate-y-0.5 transition-transform" />
+                    </>
+                  ) : (
+                    <>
+                      Read More 
+                      <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
-            <LearningObjectives objectives={course.learning_objectives} />
-            <CourseDescription description={course.long_description} />
-            
-            {/* Course Content */}
-            <div className="bg-white rounded shadow">
-                <CourseModulesClient modules={course.modules} />
-            </div>
+            <div className="space-y-8 pt-6">
+              <h2 className="text-xl font-black text-foreground uppercase tracking-widest border-b border-border pb-4">
+                Instructor
+              </h2>
 
+              <div className="space-y-5">
+                <div className="flex items-end gap-4">
+                  <div
+                    onClick={handleOpenTutorProfile}
+                    className="h-16 w-16 md:h-20 md:w-20 rounded-md bg-muted border border-border flex items-center justify-center font-black text-xl text-[#2694C6] cursor-pointer overflow-hidden shrink-0"
+                  >
+                    {(tutorProfile?.profile_image || course?.instructor?.profile_image) ? (
+                      <img 
+                        src={tutorProfile?.profile_image || course?.instructor?.profile_image} 
+                        className="w-full h-full object-cover" 
+                        alt="" 
+                      />
+                    ) : (
+                      <span className="text-2xl">
+                        {(tutorProfile?.display_name || course?.instructor?.creator_name || course?.instructor?.display_name || "U")[0]}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 pb-1">
+                    <h4
+                      onClick={handleOpenTutorProfile}
+                      className="font-black text-[#2694C6] text-lg hover:underline cursor-pointer leading-tight mb-1"
+                    >
+                      {tutorProfile?.display_name || course?.instructor?.creator_name || course?.instructor?.display_name || course?.instructor?.instructor_name || "Unknown Instructor"}
+                    </h4>
+                    <p className="text-xs text-muted-foreground font-bold">
+                      Curriculum Lead & Industry Expert
+                    </p>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className={cn(
+                    "text-sm text-muted-foreground font-medium leading-relaxed transition-all duration-300",
+                    !isBioExpanded ? "line-clamp-3" : "line-clamp-none"
+                  )}>
+                    {tutorProfile?.bio || course?.instructor?.bio || "Professional instructor focused on practical, job-ready skills."}
+                  </div>
+
+                  {!isBioExpanded && (course?.instructor?.bio?.length > 150 || tutorProfile?.bio?.length > 150) && (
+                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
+                  )}
+                </div>
+
+                {(course?.instructor?.bio?.length > 150 || tutorProfile?.bio?.length > 150) && (
+                  <button
+                    onClick={() => setIsBioExpanded(!isBioExpanded)}
+                    className="flex items-center gap-2 text-[#2694C6] font-black uppercase text-[10px] tracking-widest hover:text-[#1e7ca8] transition-colors"
+                  >
+                    {isBioExpanded ? (
+                      <>Show Less <ChevronUp size={14} /></>
+                    ) : (
+                      <>Read More <ChevronDown size={14} /></>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </main>
         </div>
       </div>
+
+      <Dialog open={isTutorModalOpen} onOpenChange={setIsTutorModalOpen}>
+        <DialogContent className="w-[95%] sm:max-w-[550px] lg:max-w-[650px] p-0 gap-0 h-[85vh] md:h-[80vh] flex flex-col border-border/80 shadow-2xl rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[50%] left-[50%] -translate-x-[50%] -translate-y-[50%]">
+          
+          <DialogHeader className="px-5 py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-3">
+              <div className="bg-primary/10 p-2 rounded-md border border-primary/20 shrink-0">
+                <UserCheck2 className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-sm md:text-base font-bold tracking-tight text-foreground uppercase truncate">
+                  Instructor Profile
+                </DialogTitle>
+                <p className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.15em]">Verified Professional</p>
+              </div>
+            </div>
+            <DialogClose className="rounded-md p-2 hover:bg-muted transition -mr-2" onClick={() => setIsTutorModalOpen(false)}>
+              <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6 space-y-8 custom-scrollbar">
+            {loadingTutor ? (
+              <div className="space-y-10 animate-pulse">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 p-5 rounded-md border border-border bg-muted/10">
+                  <div className="h-24 w-24 rounded-md bg-muted shrink-0" />
+                  <div className="flex-1 space-y-3 w-full">
+                    <div className="h-6 bg-muted w-3/4 mx-auto sm:mx-0 rounded" />
+                    <div className="h-3 bg-muted w-1/2 mx-auto sm:mx-0 rounded" />
+                    <div className="flex gap-4 pt-2 justify-center sm:justify-start">
+                      <div className="h-4 bg-muted w-20 rounded" />
+                      <div className="h-4 bg-muted w-20 rounded" />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="h-3 bg-muted w-32 rounded mb-6" />
+                  <div className="space-y-3 border-l-2 border-muted pl-4">
+                    <div className="h-3 bg-muted w-full rounded" />
+                    <div className="h-3 bg-muted w-[95%] rounded" />
+                    <div className="h-3 bg-muted w-[98%] rounded" />
+                    <div className="h-3 bg-muted w-[90%] rounded" />
+                    <div className="h-3 bg-muted w-[40%] rounded" />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="h-3 bg-muted w-24 rounded" />
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="h-6 w-16 bg-muted rounded-sm" />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : tutorProfile ? (
+              <>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 p-5 rounded-md border border-border bg-muted/10">
+                  <div className="h-24 w-24 rounded-md border-2 border-background shadow-sm overflow-hidden shrink-0 bg-muted flex items-center justify-center">
+                    {tutorProfile.profile_image ? (
+                      <img src={tutorProfile.profile_image} className="w-full h-full object-cover" alt={tutorProfile.display_name} />
+                    ) : (
+                      <span className="text-3xl font-black text-primary">{tutorProfile.display_name?.[0]}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 text-center sm:text-left space-y-2">
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <h3 className="text-xl font-black tracking-tight text-foreground truncate">{tutorProfile.display_name}</h3>
+                      {tutorProfile.is_verified && <Verified size={18} className="text-primary shrink-0" />}
+                    </div>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-[0.1em] leading-tight">
+                      {tutorProfile.headline}
+                    </p>
+                    
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 pt-2">
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
+                        <Users size={14} className="text-primary" /> 
+                        {tutorProfile.total_students?.toLocaleString()} Students
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase">
+                        <Award size={14} className="text-primary" /> 
+                        {tutorProfile.average_rating} Rating
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[9px]">01</span>
+                    Professional Biography
+                  </h4>
+                  <div className="prose prose-sm max-w-none text-foreground/80 leading-relaxed font-medium text-sm border-l-2 border-muted pl-4">
+                    <ReactMarkdown>{tutorProfile.bio}</ReactMarkdown>
+                  </div>
+                </div>
+
+                {tutorProfile.subjects?.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[9px]">02</span>
+                      Areas of Expertise
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {tutorProfile.subjects.map((sub: any, index: number) => (
+                        <Badge 
+                          key={sub.id || `sub-${index}`} 
+                          variant="secondary" 
+                          className="rounded-sm bg-muted/50 border border-border/50 font-bold text-[9px] uppercase px-2.5 py-1 shadow-none text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                        >
+                          {sub.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center py-20">
+                <InboxIcon className="h-10 w-10 text-muted-foreground/20 mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Profile details unavailable</p>
+              </div>
+            )}
+          </div>
+
+          <div className="px-5 py-4 border-t bg-muted/20 flex justify-end shrink-0">
+            <Button 
+              variant="secondary" 
+              onClick={() => setIsTutorModalOpen(false)} 
+              className="h-10 px-6 rounded-md font-black text-[10px] text-black uppercase tracking-widest shadow-none bg-muted hover:bg-muted/80 active:scale-[0.98] transition-all"
+            >
+              Close Profile
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+const CourseDetailsSkeleton = () => (
+  <SkeletonTheme baseColor="#f3f4f6" highlightColor="#ffffff">
+    <div className="min-h-screen">
+      <div className="bg-[#1C1D1F] py-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="lg:w-2/3 space-y-6">
+            <Skeleton width={100} height={20} />
+            <Skeleton height={80} width="80%" />
+            <Skeleton height={40} width="60%" />
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-8">
+            <Skeleton height={200} borderRadius={6} />
+            <Skeleton count={5} height={60} borderRadius={6} />
+          </div>
+          <div className="lg:col-span-1">
+            <Skeleton height={450} borderRadius={6} />
+          </div>
+        </div>
+      </div>
+    </div>
+  </SkeletonTheme>
+);

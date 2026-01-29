@@ -76,7 +76,7 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
     href.startsWith("http") || 
     href === "/profile" || 
     href === "/discover/organizations" ||
-    href === "/organizations"; // Organizations is now a global/hard link
+    href === "/organizations";
 
   const computedHref = (!isGlobalLink && activeSlug) 
     ? `/${activeSlug}${href === "/" ? "" : href}` 

@@ -1,92 +1,77 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, PlayCircle, Lock, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const ChevronDownIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24">
-    <path
-      fill="#000"
-      d="M12.707 15.707a1 1 0 0 1-1.414 0L5.636 10.05A1 1 0 1 1 7.05 8.636l4.95 4.95 4.95-4.95a1 1 0 0 1 1.414 1.414z"
-    />
-  </svg>
-);
+export const CourseModulesClient = ({ modules }: { modules: any[] }) => {
+  const [openModule, setOpenModule] = useState<number | null>(0);
 
-type Lesson = {
-  title: string;
-  is_preview: boolean;
-  estimated_duration_minutes: number;
-};
-
-type Module = {
-  title: string;
-  description: string;
-  lessons_count: number;
-  lessons: Lesson[];
-};
-
-export const CourseModulesClient = ({ modules }: { modules: Module[] }) => {
-  const [openModule, setOpenModule] = useState<number | null>(null);
+  const totalLessons = modules?.reduce((acc, m) => acc + (m.lessons_count || 0), 0) || 0;
 
   return (
-    <section className="border border-gray-200 rounded-md p-6 my-8">
-      <h2 className="text-xl font-bold mb-4 text-gray-900">Course Modules</h2>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h2 className="text-2xl font-black text-foreground tracking-tight">Course content</h2>
+        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+          <span>{modules?.length || 0} sections</span>
+          <span className="opacity-30">•</span>
+          <span>{totalLessons} lectures</span>
+        </div>
+      </div>
 
-      {modules && modules.length > 0 ? (
-        <div className="border rounded">
-          {modules.map((module, index) => (
-            <div key={index} className="border-b last:border-b-0">
+      <div className="border border-border rounded-md divide-y divide-border bg-card">
+        {modules?.map((module, index) => {
+          const isOpen = openModule === index;
+          return (
+            <div key={index}>
               <button
-                type="button"
-                onClick={() =>
-                  setOpenModule(openModule === index ? null : index)
-                }
-                className="w-full p-4 text-left flex justify-between items-center hover:bg-gray-50"
+                onClick={() => setOpenModule(isOpen ? null : index)}
+                className={cn(
+                  "w-full px-6 py-4 flex items-center justify-between transition-colors bg-muted/20 hover:bg-muted/40",
+                  isOpen && "border-b border-border"
+                )}
               >
-                <span className="font-semibold text-gray-800">
-                  {module.title} ({module.lessons_count || 0} Lessons)
+                <div className="flex items-center gap-3">
+                  <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isOpen && "rotate-180")} />
+                  <span className="font-black text-sm text-foreground">{module.title}</span>
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground">
+                  {module.lessons_count || 0} lectures
                 </span>
-                <ChevronDownIcon
-                  className={`w-5 h-5 transform transition-transform text-gray-500 ${
-                    openModule === index ? "rotate-180" : ""
-                  }`}
-                />
               </button>
 
-              {openModule === index && (
-                <div className="p-4 pt-0 text-gray-600 space-y-3">
-                  <p className="text-sm mb-2">
-                    {module.description || "No description available."}
-                  </p>
-
-                  {module.lessons && module.lessons.length > 0 ? (
-                    <ul className="list-disc pl-5 space-y-1 text-gray-700">
-                      {module.lessons.map((lesson, i) => (
-                        <li key={i}>
-                          <span className="font-medium">{lesson.title}</span>{" "}
-                          <span className="text-gray-500 text-sm">
-                            ({lesson.estimated_duration_minutes || 0} min)
-                          </span>
-                          {lesson.is_preview && (
-                            <span className="ml-2 text-xs font-semibold text-[#2694C6]">
-                              Preview
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 text-sm">
-                      No lessons available.
-                    </p>
-                  )}
+              {isOpen && (
+                <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                  {module.lessons?.map((lesson: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between px-6 py-4 border-b border-border last:border-none group hover:bg-muted/5 transition-colors">
+                      <div className="flex items-center gap-3">
+                        {lesson.is_preview ? (
+                          <PlayCircle size={14} className="text-foreground" />
+                        ) : (
+                          <Lock size={14} className="text-muted-foreground/30" />
+                        )}
+                        <span className={cn(
+                          "text-sm font-medium",
+                          lesson.is_preview ? "text-foreground cursor-pointer hover:underline underline-offset-4" : "text-muted-foreground/70"
+                        )}>
+                          {lesson.title}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 shrink-0">
+                        {lesson.is_preview && (
+                          <span className="text-[10px] font-black text-[#2694C6] uppercase border-b border-[#2694C6]">Preview</span>
+                        )}
+                        <span className="text-[11px] font-medium text-muted-foreground">{lesson.estimated_duration_minutes || 0}:00</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-500">No modules available.</p>
-      )}
-    </section>
+          );
+        })}
+      </div>
+    </div>
   );
 };

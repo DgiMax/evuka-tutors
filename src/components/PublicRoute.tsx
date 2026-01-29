@@ -14,7 +14,7 @@ export default function PublicRoute({ children }: { children: React.ReactNode })
 
     if (user) {
       hasRedirected.current = true;
-      router.replace("/dashboard");
+      router.replace("/");
     }
   }, [user, loading, router]);
 

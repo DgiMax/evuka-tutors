@@ -1,5 +1,5 @@
-import TutorEventPreviewPage from "@/components/events/TutorEventPreview";
+import EventManagerDashboard from "@/components/events/manage/EventManagerDashboard";
 
-export default function GlobalCoursePreviewPage() {
-  return <TutorEventPreviewPage />;
+export default function EventManagePage() {
+  return <EventManagerDashboard/>;
 }

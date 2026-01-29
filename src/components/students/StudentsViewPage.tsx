@@ -8,7 +8,6 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import {
   Users,
-  Loader2,
   AlertTriangle,
   MoreVertical,
   UserX,
@@ -17,7 +16,8 @@ import {
   TrendingUp,
   UserPlus,
   X,
-  Inbox
+  Inbox,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -146,15 +146,39 @@ export default function StudentsViewPage() {
     }
   };
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(amount);
-
   const getStatusBadge = (status: string) => {
     const s = status.toLowerCase();
     if (s === "active") return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 rounded-md px-2 shadow-none font-medium">Active</Badge>;
     if (s === "suspended") return <Badge className="bg-amber-50 text-amber-700 border-amber-100 rounded-md px-2 shadow-none font-medium">Suspended</Badge>;
     return <Badge className="bg-blue-50 text-blue-700 border-blue-100 rounded-md px-2 shadow-none font-medium">Completed</Badge>;
   };
+
+  const ActionsMenu = ({ s }: { s: StudentEnrollment }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted rounded-md shadow-none">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="rounded-md border-border shadow-none">
+        {s.status.toLowerCase() === "active" ? (
+          <DropdownMenuItem onClick={() => handleAction(s.id, "suspend")} className="text-sm cursor-pointer">
+            <UserX className="mr-2 h-4 w-4" /> Suspend Student
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onClick={() => handleAction(s.id, "activate")} className="text-sm cursor-pointer">
+            <UserCheck className="mr-2 h-4 w-4" /> Restore Access
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem 
+          onClick={() => { setEnrollmentToRemove(s); setIsConfirmOpen(true); }}
+          className="text-sm text-red-600 focus:text-red-600 cursor-pointer"
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Remove Permanently
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   if (isLoading) return <StudentsSkeleton />;
 
@@ -179,7 +203,7 @@ export default function StudentsViewPage() {
           <h3 className="font-semibold text-base">Enrolled Students</h3>
         </div>
         
-        <div className="overflow-x-auto">
+        <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 border-border hover:bg-muted/30">
@@ -212,82 +236,96 @@ export default function StudentsViewPage() {
                     </TableCell>
                     <TableCell className="py-4">{getStatusBadge(s.status)}</TableCell>
                     <TableCell className="pr-6 py-4 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted rounded-md shadow-none">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-md border-border shadow-none">
-                          {s.status.toLowerCase() === "active" ? (
-                            <DropdownMenuItem onClick={() => handleAction(s.id, "suspend")} className="text-sm cursor-pointer">
-                              <UserX className="mr-2 h-4 w-4" /> Suspend Student
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => handleAction(s.id, "activate")} className="text-sm cursor-pointer">
-                              <UserCheck className="mr-2 h-4 w-4" /> Restore Access
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem 
-                            onClick={() => { setEnrollmentToRemove(s); setIsConfirmOpen(true); }}
-                            className="text-sm text-red-600 focus:text-red-600 cursor-pointer"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Remove Permanently
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <ActionsMenu s={s} />
                     </TableCell>
                   </TableRow>
                 ))
-              ) : (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="h-64 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-3">
-                      <div className="p-4 border-2 border-dashed border-border rounded-full bg-muted/20">
-                        <Inbox className="h-8 w-8 opacity-20" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-foreground">No students enrolled</p>
-                        <p className="text-xs">Once students join your courses, they will appear here.</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )}
+              ) : null}
             </TableBody>
           </Table>
         </div>
+
+        <div className="md:hidden divide-y divide-border">
+          {students.length > 0 ? (
+            students.map((s) => (
+              <div key={s.id} className="p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-1">
+                    <p className="font-bold text-foreground text-sm">{s.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{s.email}</p>
+                  </div>
+                  <ActionsMenu s={s} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-3 w-3 text-muted-foreground" />
+                  <p className="text-xs font-medium text-muted-foreground truncate">{s.course_title}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <span>Course Progress</span>
+                    <span>{s.progress_percent}%</span>
+                  </div>
+                  <Progress value={s.progress_percent} className="h-1.5" />
+                </div>
+                <div className="pt-1">
+                  {getStatusBadge(s.status)}
+                </div>
+              </div>
+            ))
+          ) : null}
+        </div>
+
+        {students.length === 0 && (
+          <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-3">
+            <div className="p-4 border-2 border-dashed border-border rounded-full bg-muted/20">
+              <Inbox className="h-8 w-8 opacity-20" />
+            </div>
+            <div className="space-y-1 text-center">
+              <p className="text-sm font-semibold text-foreground">No students enrolled</p>
+              <p className="text-xs">Once students join your courses, they will appear here.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[440px] p-0 gap-0 border-border/80 rounded-md bg-background shadow-none overflow-hidden [&>button]:hidden">
-          <DialogHeader className="px-6 py-4 border-b bg-muted/30 flex flex-row items-center justify-between">
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+        <DialogContent className="w-[94%] sm:max-w-[420px] p-0 gap-0 border-border/80 rounded-md bg-background shadow-none overflow-hidden [&>button]:hidden">
+          <DialogHeader className="px-5 py-4 border-b bg-muted/30 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-red-50 border border-red-100 rounded-md">
                 <AlertTriangle className="h-4 w-4 text-red-600" />
               </div>
-              Confirm Removal
-            </DialogTitle>
-            <DialogClose className="rounded-md p-1 hover:bg-muted transition-colors"><X className="h-4 w-4 text-muted-foreground" /></DialogClose>
+              <DialogTitle className="text-sm font-bold uppercase tracking-tight text-foreground">Confirm Removal</DialogTitle>
+            </div>
+            <DialogClose className="rounded-md p-1.5 hover:bg-muted transition-colors" onClick={() => setIsConfirmOpen(false)}>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </DialogClose>
           </DialogHeader>
+
           <div className="p-6">
             <p className="text-sm text-muted-foreground leading-relaxed">
               Are you sure you want to remove <span className="font-bold text-foreground">{enrollmentToRemove?.full_name}</span>? 
               This will revoke all course access and delete their enrollment record permanently.
             </p>
           </div>
-          <div className="px-6 py-4 border-t bg-muted/30 flex items-center justify-end gap-3">
-            <Button variant="outline" size="sm" onClick={() => setIsConfirmOpen(false)} className="rounded-md h-9 shadow-none">Cancel</Button>
+
+          <div className="px-5 py-4 border-t bg-muted/30 flex items-center justify-end gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsConfirmOpen(false)} 
+              className="rounded-md h-9 text-[11px] font-bold uppercase tracking-widest shadow-none"
+            >
+              Cancel
+            </Button>
             <Button 
               variant="destructive" 
-              size="sm" 
               onClick={() => { 
                 if (enrollmentToRemove) handleAction(enrollmentToRemove.id, "remove"); 
                 setIsConfirmOpen(false); 
               }} 
-              className="rounded-md h-9 shadow-none"
+              className="rounded-md h-9 text-[11px] font-bold uppercase tracking-widest shadow-none"
             >
-              Confirm Removal
+              Remove Record
             </Button>
           </div>
         </DialogContent>

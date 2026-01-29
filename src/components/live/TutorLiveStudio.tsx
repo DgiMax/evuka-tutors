@@ -18,7 +18,6 @@ import api from '@/lib/api/axios';
 import { toast } from 'sonner';
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 
-// --- Types ---
 interface Resource {
   id: number;
   title: string;
@@ -87,10 +86,9 @@ export default function TutorLiveStudio() {
         setIsLoading(true);
         const { data } = await api.get<JoinResponse>(`/live/lessons/${lessonId}/join/`);
         
-        // Security Check: Redirect if not host
         if (!data.is_host) {
             toast.error("Unauthorized: This view is for Tutors only.");
-            router.push('/dashboard'); 
+            router.push('/'); 
             return;
         }
 
@@ -131,7 +129,7 @@ export default function TutorLiveStudio() {
 
   const handleDisconnect = () => {
     const basePath = activeSlug ? `/${activeSlug}` : '';
-    router.push(`${basePath}/dashboard`);
+    router.push(`${basePath}`);
   };
 
   if (isLoading) {

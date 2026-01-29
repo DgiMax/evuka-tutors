@@ -1,9 +1,12 @@
-// components/events/EventAgenda.tsx
 "use client";
 
 import React, { useState } from "react";
+import { ChevronDown, Clock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type AgendaItem = {
+  id?: number;
+  time: string;
   title: string;
   description: string;
 };
@@ -16,42 +19,69 @@ export const EventAgenda = ({ agenda }: { agenda: AgendaItem[] }) => {
 
   if (!agenda?.length) {
     return (
-        <p>No agenda provided for this event.</p>
+      <div className="p-8 border-2 border-dashed border-border rounded-md text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+          No agenda items scheduled
+        </p>
+      </div>
     );
   }
 
   return (
-      <div className="space-y-4">
-        {agenda.map((item, index) => (
-          <div key={index} className="border border-gray-100 rounded">
+    <div className="space-y-3">
+      {agenda.map((item, index) => {
+        const isOpen = openIndex === index;
+        return (
+          <div 
+            key={index} 
+            className={cn(
+              "border rounded-md transition-all duration-200",
+              isOpen ? "border-[#2694C6] bg-muted/5" : "border-border hover:border-border/80"
+            )}
+          >
             <button
               onClick={() => toggle(index)}
-              className="w-full flex justify-between items-center px-4 py-3 text-left font-medium text-gray-800 hover:bg-gray-50"
+              className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 text-left group"
             >
-              <span>{item.title}</span>
-              <svg
-                className={`w-5 h-5 transition-transform ${
-                  openIndex === index ? "rotate-180" : ""
-                }`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            {openIndex === index && (
-              <div className="px-4 pb-4 text-gray-700 text-sm border-t border-gray-100 bg-gray-50">
-                <p className="pt-2">{item.description}</p>
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  "flex items-center gap-1.5 px-2 py-1 rounded-sm text-[10px] font-black uppercase tracking-tighter border transition-colors",
+                  isOpen 
+                    ? "bg-[#2694C6] text-white border-[#2694C6]" 
+                    : "bg-muted text-muted-foreground border-border"
+                )}>
+                  <Clock size={12} />
+                  {item.time}
+                </div>
+                <span className="font-black text-sm uppercase tracking-wider text-foreground">
+                  {item.title}
+                </span>
               </div>
-            )}
+              
+              <ChevronDown 
+                size={18} 
+                className={cn(
+                  "text-muted-foreground transition-transform duration-300 shrink-0 self-end sm:self-center",
+                  isOpen ? "rotate-180 text-[#2694C6]" : "group-hover:text-foreground"
+                )} 
+              />
+            </button>
+
+            <div className={cn(
+              "grid transition-all duration-300 ease-in-out",
+              isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            )}>
+              <div className="overflow-hidden">
+                <div className="px-4 pb-4 pt-0">
+                  <div className="p-4 rounded-sm bg-muted/30 border-l-2 border-[#2694C6] text-sm text-muted-foreground font-medium leading-relaxed">
+                    {item.description || "No further details provided for this segment."}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })}
+    </div>
   );
 };

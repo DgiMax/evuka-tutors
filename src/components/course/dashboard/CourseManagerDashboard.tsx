@@ -110,6 +110,7 @@ export default function CourseManagerDashboard() {
   const {
     data: dashboardData,
     isLoading: isDashboardLoading,
+    refetch,
     isError,
   } = useQuery<CourseManagementData>({
     queryKey: ["courseManagement", courseSlug],
@@ -328,7 +329,9 @@ export default function CourseManagerDashboard() {
           <TabsContent value="live-classes" className="outline-none focus-visible:ring-0 mt-0">
             <LiveClassManagerTab
               courseSlug={courseSlug}
+              courseId={dashboardData!.id} 
               liveClasses={dashboardData!.live_classes}
+              onRefresh={refetch}
             />
           </TabsContent>
 

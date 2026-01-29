@@ -117,7 +117,7 @@ export default function CreateEventPage({
   const handleExitToCreateCourse = () => {
     isNavigatingAway.current = true;
     toast.info("Redirecting to create a course...");
-    router.push("/dashboard/courses/create");
+    router.push("/courses/create");
   };
 
   useEffect(() => {
@@ -250,7 +250,7 @@ export default function CreateEventPage({
       });
 
       isNavigatingAway.current = true;
-      router.push("/dashboard/events");
+      router.push("/events");
     } catch (error: any) {
       console.error("Submission failed:", error.response?.data);
       const serverErrors = error.response?.data;
@@ -301,7 +301,7 @@ export default function CreateEventPage({
     localStorage.removeItem(storageKey);
     localStorage.removeItem(`${storageKey}_step`);
     toast.info("Event creation cancelled. Draft discarded.");
-    router.push("/dashboard/events");
+    router.push("/events");
   };
 
   const nextStep = async () => {

@@ -1,26 +1,34 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import { useParams, useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import {
-  CalendarDaysIcon,
-  MapPinIcon,
-  Clock3Icon,
-  UsersIcon,
+  CalendarDays,
+  MapPin,
+  Clock,
+  Users,
   Eye,
-  Pencil,
+  ArrowLeft,
+  CheckCircle2,
+  Info,
+  Globe,
+  PlayCircle,
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Heart,
+  ShieldCheck,
+  Target
 } from "lucide-react";
 
-import { EventAgenda } from "@/components/events/EventAgenda";
-import api from "@/lib/api/axios";
-import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-// ---------------------------------------------------
-// TYPES
-// ---------------------------------------------------
+import api from "@/lib/api/axios";
+import { cn } from "@/lib/utils";
 
 export type EventDetails = {
   id: number;
@@ -48,7 +56,7 @@ export type EventDetails = {
     title: string;
     thumbnail: string;
   };
-  organizer_name: string;
+  organizer_name?: string;
   registrations_count: number;
   is_full: boolean;
   is_registered: boolean;
@@ -61,328 +69,316 @@ export type EventDetails = {
   computed_status: string;
 };
 
-// ---------------------------------------------------
-// SIDEBAR: Tutor Actions (EDIT ONLY + STATUS)
-// ---------------------------------------------------
+export const EventAgenda = ({ agenda }: { agenda: any[] }) => {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
 
-const TutorActionSidebar = ({
-  event,
-  makeContextLink,
-}: {
-  event: EventDetails;
-  makeContextLink: (path: string) => string;
-}) => {
-  const status = event.computed_status || "draft";
-
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case "scheduled":
-      case "approved":
-        return "bg-green-100 text-green-700";
-      case "ongoing":
-        return "bg-indigo-100 text-indigo-700";
-      case "pending_approval":
-        return "bg-blue-100 text-blue-700";
-      case "draft":
-        return "bg-yellow-100 text-yellow-700";
-      case "cancelled":
-      case "postponed":
-      default:
-        return "bg-gray-100 text-gray-600";
-    }
-  };
+  if (!agenda?.length) return null;
 
   return (
-    <div className="sticky top-16">
-      <div className="border border-gray-200 rounded bg-white p-6 shadow">
-        
-        {/* ONLY EDIT ACTION requested */}
-        <div className="mb-6">
-          <Link href={makeContextLink(`/tutor/events/${event.slug}/edit`)} className="block w-full">
-            <Button className="w-full font-bold bg-[#2694C6] hover:bg-[#227fa8] rounded">
-              <Pencil className="w-4 h-4 mr-2" /> Edit Event
-            </Button>
-          </Link>
-        </div>
-
-        <hr className="my-6 border-gray-100" />
-
-        {/* Status Display */}
-        <div className="mb-6">
-          <p className="text-xs font-medium text-gray-500 uppercase mb-2">Event Status</p>
-          <span className={`inline-block text-xs font-bold px-3 py-1 rounded-full ${getStatusClass(status)}`}>
-            {status.charAt(0).toUpperCase() + status.slice(1).replace("_", " ")}
-          </span>
-        </div>
-
-        {/* Key Details Summary */}
-        <div className="space-y-3 text-sm text-gray-700">
-            {event.is_paid ? (
-                <p className="text-2xl font-bold text-gray-900 mb-4">
-                {event.currency} {event.price}
-                </p>
-            ) : (
-                <p className="text-lg font-semibold text-green-600 mb-4">Free Event</p>
-            )}
-
-          <p className="flex items-start">
-            <CalendarDaysIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
-            <span>
-                {new Date(event.start_time).toLocaleString("en-US", {
-                dateStyle: "medium",
-                timeStyle: "short",
-                })}
-            </span>
-          </p>
-
-          <p className="flex items-start">
-            <Clock3Icon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
-            <span>{event.timezone}</span>
-          </p>
-
-          <p className="flex items-start">
-            <MapPinIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
-            <span className="capitalize">
-                {event.location || (event.meeting_link ? "Online" : event.event_type)}
-            </span>
-          </p>
-
-          <p className="flex items-start">
-            <UsersIcon className="w-4 h-4 mr-3 text-gray-400 mt-0.5 flex-shrink-0" />
-            <span>
-                {event.registrations_count} Registered 
-                <span className="text-gray-500 ml-1">
-                    ({event.max_attendees ? `${event.max_attendees} max` : "Unlimited"})
+    <div className="divide-y divide-border border-y border-border">
+      {agenda.map((item, index) => {
+        const isOpen = openIndex === index;
+        return (
+          <div key={index} className="group">
+            <button
+              onClick={() => setOpenIndex(isOpen ? null : index)}
+              className="w-full flex items-center justify-between py-5 px-2 text-left transition-colors"
+            >
+              <div className="flex items-center gap-6">
+                <span className="text-[11px] font-black text-[#2694C6] uppercase tracking-tighter w-16">
+                  {item.time}
                 </span>
-            </span>
-          </p>
-        </div>
-      </div>
+                <span className="font-bold text-sm text-foreground group-hover:text-[#2694C6] transition-colors">
+                  {item.title}
+                </span>
+              </div>
+              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", isOpen && "rotate-180")} />
+            </button>
+            <div className={cn("grid transition-all duration-300 ease-in-out", isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+              <div className="overflow-hidden">
+                <div className="pb-6 pl-[88px] pr-4 text-sm text-muted-foreground leading-relaxed">
+                  {item.description}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
 
-// ---------------------------------------------------
-// SUB-COMPONENTS
-// ---------------------------------------------------
+const PreviewStickySidebar = ({ event }: { event: EventDetails }) => (
+  <div className="relative lg:sticky lg:top-20 border-2 border-border rounded-md bg-card overflow-hidden w-full">
+    <div className="aspect-video bg-muted relative border-b border-border flex items-center justify-center group">
+      {event.banner_image ? (
+        <Image src={event.banner_image} alt="Banner" fill className="object-cover" />
+      ) : (
+        <BookOpen className="h-10 w-10 text-muted-foreground/20" />
+      )}
+      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+        <PlayCircle size={48} className="text-white" />
+      </div>
+    </div>
 
-const EventDescription = ({ html }: { html: string }) => (
-  <div className="prose prose-gray max-w-none text-gray-700">
-    <h2 className="text-2xl font-bold mb-4 text-gray-900">About this Event</h2>
-    <div dangerouslySetInnerHTML={{ __html: html || "No description available." }} />
-  </div>
-);
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="space-y-1">
+        <h3 className="text-2xl md:text-3xl font-black text-foreground">
+          {event.is_paid ? `${event.currency} ${Number(event.price).toLocaleString()}` : "Free"}
+        </h3>
+        <p className="text-[10px] font-black uppercase tracking-widest text-[#2694C6]">Full Event Access</p>
+      </div>
 
-const EventDetailsLoading = () => (
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 animate-pulse">
-    <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
-      <aside className="lg:order-2 order-1 mt-8 lg:mt-0">
-         <div className="sticky top-2 border border-gray-200 rounded bg-white p-6 h-96">
-             <div className="h-10 bg-gray-200 rounded mb-6"></div>
-             <div className="h-px bg-gray-200 mb-6"></div>
-             <div className="space-y-4">
-                 <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                 <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-             </div>
-         </div>
-      </aside>
-      <main className="lg:col-span-2 lg:order-1 order-2">
-        <div className="aspect-video bg-gray-200 rounded-md mb-8"></div>
-        <div className="h-10 bg-gray-200 rounded w-3/4 mb-4"></div>
-        <div className="h-6 bg-gray-200 rounded w-1/2 mb-8"></div>
-        <div className="space-y-6">
-          <div className="h-32 bg-gray-200 rounded border border-gray-100"></div>
-          <div className="h-48 bg-gray-200 rounded border border-gray-100"></div>
+      <div className="space-y-3">
+        <button className="w-full font-black uppercase text-[12px] tracking-widest py-4 px-4 rounded-md bg-[#2694C6]/50 text-white cursor-not-allowed shadow-none">
+          Register Now
+        </button>
+        <div className="flex items-center space-x-3">
+          <button className="flex-grow bg-white text-gray-400 font-black uppercase text-[12px] tracking-widest py-4 px-4 rounded-md border-2 border-gray-200 cursor-not-allowed transition-colors duration-200">
+            Add to Cart
+          </button>
+          <button className="p-4 rounded-md border-2 border-gray-200 text-gray-300 cursor-not-allowed">
+            <Heart size={20} />
+          </button>
         </div>
-      </main>
+      </div>
     </div>
   </div>
 );
 
-const RelatedCourseCard = ({ course }: { course: any }) => {
-    // Helper to build the correct link based on context if needed, 
-    // or just link to the public course page.
-    return (
-        <div className="border border-gray-200 rounded p-4 flex items-center gap-4 bg-white hover:shadow transition-shadow">
-            {course.thumbnail ? (
-                 <img src={course.thumbnail} alt={course.title} className="w-24 h-16 object-cover rounded" />
-            ) : (
-                <div className="w-24 h-16 bg-gray-100 rounded flex items-center justify-center text-gray-400">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                </div>
-            )}
-            <div>
-            <h3 className="font-semibold text-gray-900 line-clamp-1">{course.title}</h3>
-            <Link href={`/courses/${course.slug}`} target="_blank" className="text-sm font-medium text-[#2694C6] hover:underline">
-                View Course Page
-            </Link>
-            </div>
-        </div>
-    );
-};
-
-// ---------------------------------------------------
-// MAIN PAGE: Tutor Event Preview
-// ---------------------------------------------------
-
 export default function TutorEventPreviewPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.slug as string;
-  const { activeSlug } = useActiveOrg();
-
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [openRuleIndex, setOpenRuleIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!slug) return;
-
-    const fetchEventDetails = async () => {
-      setLoading(true);
-      setError(null);
-
+    const fetchEvent = async () => {
       try {
-        // ✅ CORRECTED API ENDPOINT to match backend router
         const res = await api.get(`/events/tutor-events/${slug}/`);
         setEvent(res.data);
-      } catch (err: any) {
-        console.error("Failed to fetch event:", err);
-        setError(err.response?.status === 404 ? "Event not found." : "Failed to load event details.");
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }
     };
+    fetchEvent();
+  }, [slug]);
 
-    fetchEventDetails();
-  }, [slug, activeSlug]);
-
-  const makeContextLink = (path: string) => {
-    if (!activeSlug) return path;
-    // If path already has org prefix, don't add it again
-    if (path.startsWith(`/org/${activeSlug}`)) return path;
-    // Ensure we don't double-slash
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `/org/${activeSlug}${cleanPath}`;
-  };
-
-  if (loading)
-    return (
-      <div className="bg-gray-50 min-h-screen">
-        <EventDetailsLoading />
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-sm text-center max-w-md">
-             <div className="text-red-500 mb-4">
-                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-             </div>
-            <p className="text-gray-900 font-medium text-lg">{error}</p>
-        </div>
-      </div>
-    );
-
+  if (loading) return <EventDetailsSkeleton />;
   if (!event) return null;
 
+  const isLongDescription = (event.description?.length || 0) > 800;
+
   return (
-    <div className="bg-gray-50 min-h-screen font-sans">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 pb-16">
-        
-        {/* Preview Mode Banner */}
-        <div className="mb-4 p-4 bg-amber-50 border-l-4 border-amber-400 flex items-start sm:items-center shadow">
-          <Eye className="w-5 h-5 mr-3 text-amber-600 flex-shrink-0 mt-0.5 sm:mt-0" />
-          <div className="text-amber-800 text-sm">
-            <strong>Tutor Preview Mode:</strong> This is exactly how learners will see your event page.
+    <div className="bg-white min-h-screen">
+      <div className="bg-[#1C1D1F] text-white pt-10 pb-20 md:pt-16 md:pb-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <Button
+              onClick={() => router.back()}
+              variant="ghost"
+              className="group flex items-center gap-2 text-gray-300 hover:text-white p-0 hover:bg-transparent font-black uppercase text-[10px] tracking-widest transition-all w-fit"
+            >
+              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+              Back
+            </Button>
+            <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-md flex items-center gap-2">
+              <Eye size={16} className="text-amber-500" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Preview Mode</span>
+            </div>
+          </div>
+
+          <div className="lg:w-2/3 space-y-6">
+            <Badge className="bg-[#2694C6] text-white rounded-sm border-none font-black text-[10px] uppercase">
+              {event.event_type} Event
+            </Badge>
+            <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
+              {event.title}
+            </h1>
+            <p className="text-lg md:text-xl text-gray-300 font-normal max-w-3xl leading-relaxed">
+              {event.overview}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-8 pt-4">
+               <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Event Date</span>
+                  <div className="flex items-center gap-2 font-bold">
+                    <CalendarDays size={16} className="text-[#2694C6]" />
+                    <span>{new Date(event.start_time).toLocaleDateString()}</span>
+                  </div>
+               </div>
+               <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Location</span>
+                  <div className="flex items-center gap-2 font-bold">
+                    <MapPin size={16} className="text-[#2694C6]" />
+                    <span className="capitalize">{event.location || "Online"}</span>
+                  </div>
+               </div>
+               <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Organized By</span>
+                  <div className="flex items-center gap-2 font-bold">
+                    <Users size={16} className="text-[#2694C6]" />
+                    <span>{event.organizer_name || "Event Host"}</span>
+                  </div>
+               </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="lg:grid lg:grid-cols-3 lg:gap-x-8 xl:gap-x-10">
-          
-          {/* Sidebar (Right on Desktop) */}
-          <aside className="lg:col-span-1 lg:order-2 order-1 mb-8 lg:mb-0">
-            <TutorActionSidebar event={event} makeContextLink={makeContextLink} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 md:-mt-16 relative z-20 mb-12">
+         <div className="bg-white border border-border rounded-md p-6 grid grid-cols-2 md:grid-cols-4 gap-6 shadow-sm">
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-muted rounded-md"><Users size={18} className="text-[#2694C6]" /></div>
+               <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Registrations</p>
+                  <p className="text-sm font-bold">{event.registrations_count} / {event.max_attendees || "∞"}</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-muted rounded-md"><Clock size={18} className="text-[#2694C6]" /></div>
+               <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Start Time</p>
+                  <p className="text-sm font-bold">{new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-muted rounded-md"><Info size={18} className="text-[#2694C6]" /></div>
+               <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Deadline</p>
+                  <p className="text-sm font-bold">{event.registration_deadline ? new Date(event.registration_deadline).toLocaleDateString() : "Open"}</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="p-2 bg-muted rounded-md"><Globe size={18} className="text-[#2694C6]" /></div>
+               <div>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Access</p>
+                  <p className="text-sm font-bold capitalize">{event.who_can_join.replace("_", " ")}</p>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8 lg:gap-12">
+          <aside className="order-1 lg:order-2 lg:col-span-1 mt-6 lg:mt-0 z-10 w-full max-w-md lg:max-w-none mx-auto lg:mx-0">
+            <PreviewStickySidebar event={event} />
           </aside>
 
-          {/* Main Content (Left on Desktop) */}
-          <main className="lg:col-span-2 lg:order-1 order-2">
-            <div className="aspect-video bg-gray-900 rounded-md mb-8 overflow-hidden shadow">
-                {event.banner_image ? (
-                    <Image
-                        src={event.banner_image}
-                        alt={event.title}
-                        width={1280}
-                        height={720}
-                        className="w-full h-full object-cover"
-                        priority
-                    />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500">
-                         <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </div>
-                )}
-            </div>
-
-            <div className="bg-white rounded p-8 shadow border border-gray-200 mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-4">{event.title}</h1>
-                <p className="text-lg text-gray-600 mb-6 leading-relaxed">{event.overview || "No overview available."}</p>
-
-                <div className="flex flex-wrap items-center text-sm text-gray-500 pt-6 border-t border-gray-100">
-                    <div className="mr-6 mb-2">
-                        <span className="text-gray-400 mr-2">Organizer:</span>
-                        <span className="font-semibold text-gray-900">{event.organizer_name || "Unknown"}</span>
-                    </div>
-                    <div className="mb-2">
-                        <span className="text-gray-400 mr-2">Type:</span>
-                        <span className="font-semibold text-gray-900 capitalize">{event.event_type}</span>
-                    </div>
-                </div>
-            </div>
-
-            {event.agenda?.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
-                <h2 className="text-xl font-bold mb-6 text-gray-900">Event Agenda</h2>
-                <EventAgenda agenda={event.agenda} />
-              </div>
-            )}
-
+          <main className="order-2 lg:order-1 lg:col-span-2 py-8 space-y-16">
             {event.learning_objectives?.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">What You'll Learn</h2>
-                <ul className="space-y-3">
+              <div className="border border-border rounded-md p-6 md:p-8 bg-card shadow-none">
+                <div className="flex items-center gap-3 mb-8">
+                  <Target size={22} className="text-[#2694C6]" />
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-widest">Target Outcomes</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                   {event.learning_objectives.map((obj) => (
-                    <li key={obj.id} className="flex items-start">
-                        <svg className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                        <span className="text-gray-700">{obj.text}</span>
-                    </li>
+                    <div key={obj.id} className="flex items-start gap-3">
+                      <CheckCircle2 size={18} className="text-[#2694C6] shrink-0 mt-0.5" />
+                      <span className="text-sm font-medium text-muted-foreground leading-relaxed">{obj.text}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
+
+            <div className="space-y-6">
+  <h2 className="text-xl font-black text-foreground uppercase tracking-widest">
+    About Event
+  </h2>
+  
+  <div className="relative">
+    <div className={cn(
+      "prose prose-sm max-w-none text-muted-foreground font-medium leading-relaxed transition-all duration-700 ease-in-out overflow-hidden",
+      !isExpanded && isLongDescription ? "max-h-32" : "max-h-[2000px]"
+    )}>
+      <ReactMarkdown>{event.description || "No description provided."}</ReactMarkdown>
+    </div>
+
+    {!isExpanded && isLongDescription && (
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none" />
+    )}
+  </div>
+
+  {isLongDescription && (
+    <button
+      onClick={() => setIsExpanded(!isExpanded)}
+      className="flex items-center gap-2 text-[#2694C6] font-black uppercase text-[11px] tracking-widest hover:text-[#1e7ca8] transition-colors mt-2"
+    >
+      {isExpanded ? (
+        <>Show Less <ChevronUp size={14} /></>
+      ) : (
+        <>Read More <ChevronDown size={14} /></>
+      )}
+    </button>
+  )}
+</div>
+
+            <div className="space-y-8">
+              <h2 className="text-xl font-black text-foreground uppercase tracking-widest">
+                Itinerary
+              </h2>
+              <EventAgenda agenda={event.agenda || []} />
+            </div>
 
             {event.rules?.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
-                <h2 className="text-xl font-bold mb-4 text-gray-900">Event Rules</h2>
-                <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                  {event.rules.map((rule) => (
-                    <li key={rule.id}>
-                      <strong>{rule.title}: </strong>{rule.text}
-                    </li>
-                  ))}
-                </ul>
+              <div className="space-y-8">
+                <h2 className="text-xl font-black text-foreground uppercase tracking-widest">
+                  Participation Rules
+                </h2>
+                <div className="divide-y divide-border border-y border-border">
+                  {event.rules.map((rule, idx) => {
+                    const isRuleOpen = openRuleIndex === idx;
+                    return (
+                      <div key={rule.id} className="group">
+                        <button 
+                          onClick={() => setOpenRuleIndex(isRuleOpen ? null : idx)}
+                          className="w-full flex items-center justify-between py-5 px-2 text-left"
+                        >
+                          <div className="flex items-center gap-4">
+                            <ShieldCheck size={18} className={cn("transition-colors", isRuleOpen ? "text-[#2694C6]" : "text-muted-foreground")} />
+                            <span className="font-bold text-sm uppercase tracking-wider">{rule.title}</span>
+                          </div>
+                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-300", isRuleOpen && "rotate-180")} />
+                        </button>
+                        <div className={cn("grid transition-all duration-300 ease-in-out", isRuleOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
+                          <div className="overflow-hidden">
+                            <div className="pb-6 pl-10 pr-4 text-sm text-muted-foreground leading-relaxed">
+                              <ReactMarkdown>{rule.text}</ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            <div className="bg-white border border-gray-200 rounded p-8 mb-8 shadow">
-                 <EventDescription html={event.description} />
-            </div>
-
             {event.course && (
-              <div className="mt-10">
-                <h2 className="text-lg font-bold mb-4 text-gray-900">Related Course</h2>
-                <RelatedCourseCard course={event.course} />
+              <div className="space-y-6">
+                <h2 className="text-xl font-black text-foreground uppercase tracking-widest">
+                  Course Connection
+                </h2>
+                <div className="flex flex-row items-center gap-6 p-6 rounded-md border border-border bg-card shadow-none max-w-xl">
+                  <div className="h-20 w-32 rounded bg-muted overflow-hidden shrink-0 relative">
+                    {event.course.thumbnail ? (
+                       <Image src={event.course.thumbnail} alt={event.course.title} fill className="object-cover" />
+                    ) : (
+                      <BookOpen size={24} className="absolute inset-0 m-auto text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="text-left min-w-0">
+                    <h4 className="font-black text-foreground text-base truncate mb-1">{event.course.title}</h4>
+                    <p className="text-[10px] text-[#2694C6] font-black uppercase tracking-widest">Curriculum Linked</p>
+                  </div>
+                </div>
               </div>
             )}
           </main>
@@ -391,3 +387,30 @@ export default function TutorEventPreviewPage() {
     </div>
   );
 }
+
+const EventDetailsSkeleton = () => (
+  <SkeletonTheme baseColor="#f3f4f6" highlightColor="#ffffff">
+    <div className="min-h-screen">
+      <div className="bg-[#1C1D1F] py-20">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="lg:w-2/3 space-y-6">
+            <Skeleton width={100} height={20} />
+            <Skeleton height={80} width="80%" />
+            <Skeleton height={40} width="60%" />
+          </div>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-8">
+            <Skeleton height={200} borderRadius={6} />
+            <Skeleton count={5} height={60} borderRadius={6} />
+          </div>
+          <div className="lg:col-span-1">
+            <Skeleton height={450} borderRadius={6} />
+          </div>
+        </div>
+      </div>
+    </div>
+  </SkeletonTheme>
+);

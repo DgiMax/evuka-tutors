@@ -345,7 +345,7 @@ export default function TutorAnalyticsView() {
       </div>
 
       <Dialog open={!!selectedCourse} onOpenChange={(open: boolean) => !open && setSelectedCourse(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-[480px] p-0 gap-0 border-border/80 rounded-md bg-background shadow-none flex flex-col max-h-[90vh] sm:max-h-[85vh] overflow-hidden [&>button]:hidden">
+        <DialogContent className="w-[95%] sm:max-w-[500px] lg:max-w-[600px] p-0 gap-0 max-h-[90vh] md:max-h-[85vh] h-auto flex flex-col border-border/80 shadow-2xl rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[5%] md:top-[10%] translate-y-0">
           {isDetailLoading ? (
             <div className="p-12 text-center">
               <Loader2 className="animate-spin mx-auto h-8 w-8 text-primary" />
@@ -353,83 +353,89 @@ export default function TutorAnalyticsView() {
           ) : (
             selectedCourse && (
               <>
-                <DialogHeader className="px-3 py-2 sm:px-4 sm:py-3 border-b bg-muted flex flex-row items-center justify-between shrink-0">
-                  <DialogTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground truncate max-w-[85%]">
-                    <div className="p-1.5 sm:p-2 bg-background border border-border rounded shrink-0">
-                      <BookOpen className="h-4 w-4 text-primary" />
+                <DialogHeader className="px-5 py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-md border border-primary/20 shrink-0">
+                      <BookOpen className="h-5 w-5 text-primary" />
                     </div>
-                    <span className="truncate">{selectedCourse.course_info.title}</span>
-                  </DialogTitle>
-                  <DialogClose className="rounded-md p-1.5 hover:bg-muted-foreground/10 transition">
+                    <div className="min-w-0">
+                      <DialogTitle className="text-sm md:text-base font-bold tracking-tight text-foreground uppercase truncate">
+                        Course Analytics
+                      </DialogTitle>
+                      <p className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.15em] truncate">
+                        {selectedCourse.course_info.title}
+                      </p>
+                    </div>
+                  </div>
+                  <DialogClose className="rounded-md p-2 hover:bg-muted transition-colors shrink-0" onClick={() => setSelectedCourse(null)}>
                     <X className="h-5 w-5 text-muted-foreground" />
                   </DialogClose>
                 </DialogHeader>
 
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 sm:space-y-8 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:border-x-[1px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content">
-                  <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Revenue
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold">
+                <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6 space-y-8 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none">
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-md border border-border bg-muted/5 transition-colors">
+                      <p className="text-[9px] uppercase font-black text-muted-foreground mb-1 tracking-widest">Revenue</p>
+                      <p className="text-sm md:text-lg font-black font-mono text-foreground">
                         {formatCurrency(selectedCourse.course_info.revenue_metrics.total)}
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Enrolled
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold">
+                    <div className="p-3.5 rounded-md border border-border bg-muted/5 transition-colors">
+                      <p className="text-[9px] uppercase font-black text-muted-foreground mb-1 tracking-widest">Enrolled</p>
+                      <p className="text-sm md:text-lg font-black font-mono text-foreground">
                         {selectedCourse.course_info.student_metrics.total}
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Completed
-                      </p>
-                      <p className="text-lg sm:text-xl font-bold">
+                    <div className="p-3.5 rounded-md border border-border bg-muted/5 transition-colors">
+                      <p className="text-[9px] uppercase font-black text-muted-foreground mb-1 tracking-widest">Completed</p>
+                      <p className="text-sm md:text-lg font-black font-mono text-foreground">
                         {selectedCourse.course_info.student_metrics.completed}
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-5 border-t border-border pt-6">
+                  <div className="space-y-6 pt-2">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-semibold">Course Retention</h4>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {selectedCourse.course_info.student_metrics.completion_rate}% Rate
-                      </span>
+                      <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[9px]">01</span>
+                        Course Retention
+                      </h4>
+                      <Badge variant="outline" className="rounded-sm uppercase text-[8px] font-black px-2 border-primary/30 text-primary bg-primary/5 shadow-none">
+                        {selectedCourse.course_info.student_metrics.completion_rate}% Completion Rate
+                      </Badge>
                     </div>
+
                     <div className="space-y-6 relative">
                       <div className="absolute left-[15px] top-8 bottom-8 w-0.5 bg-border -z-10" />
+                      
                       <div className="flex gap-4">
-                        <div className="h-8 w-8 rounded-full border border-border bg-background flex items-center justify-center shrink-0">
+                        <div className="h-8 w-8 rounded-full border border-border bg-background flex items-center justify-center shrink-0 shadow-sm">
                           <Users className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-medium">Total Learners</span>
-                            <span className="text-muted-foreground">
-                              {selectedCourse.course_info.student_metrics.total}
-                            </span>
+                        <div className="flex-1 space-y-2.5">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-tight">
+                            <span className="text-muted-foreground">Total Learners</span>
+                            <span className="text-foreground">{selectedCourse.course_info.student_metrics.total}</span>
                           </div>
-                          <Progress value={100} className="h-1.5 bg-muted rounded-md" />
+                          <Progress value={100} className="h-1.5 bg-muted rounded-none" />
                         </div>
                       </div>
+
                       <div className="flex gap-4">
-                        <div className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50 flex items-center justify-center shrink-0">
+                        <div className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50 flex items-center justify-center shrink-0 shadow-sm">
                           <TrendingUp className="h-4 w-4 text-emerald-600" />
                         </div>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-medium text-emerald-700">Completions</span>
+                        <div className="flex-1 space-y-2.5">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-tight">
+                            <span className="text-emerald-700">Completions</span>
                             <span className="text-emerald-600 font-mono">
                               {selectedCourse.course_info.student_metrics.completed}
                             </span>
                           </div>
                           <Progress
                             value={selectedCourse.course_info.student_metrics.completion_rate}
-                            className="h-1.5 bg-muted rounded-md"
+                            className="h-1.5 bg-muted rounded-none"
                             indicatorClassName="bg-emerald-500"
                           />
                         </div>
@@ -437,43 +443,44 @@ export default function TutorAnalyticsView() {
                     </div>
                   </div>
 
-                  <div className="space-y-4 pt-4">
-                    <h4 className="text-sm font-bold flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" /> Associated Events
+                  <div className="space-y-4 pt-6 border-t border-dashed border-border/60">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-muted text-[9px]">02</span>
+                      Associated Events
                     </h4>
                     <div className="grid gap-2">
                       {selectedCourse.related_events.length > 0 ? (
                         selectedCourse.related_events.map((event: any) => (
                           <div
                             key={event.id}
-                            className="flex items-center justify-between p-3 border border-border rounded-md bg-muted/10"
+                            className="flex items-center justify-between p-4 border border-border rounded-md bg-muted/10 hover:bg-muted/20 transition-colors"
                           >
-                            <div>
-                              <p className="text-sm font-semibold">{event.title}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                {new Date(event.start_time).toLocaleDateString()}
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">{event.title}</p>
+                              <p className="text-[10px] text-muted-foreground font-bold uppercase mt-0.5">
+                                {new Date(event.start_time).toLocaleDateString(undefined, { dateStyle: 'medium' })}
                               </p>
                             </div>
-                            <Badge variant="secondary" className="text-[10px] h-5 rounded-md uppercase">
+                            <Badge variant="secondary" className="text-[9px] font-black h-5 px-2 rounded-sm border-none uppercase shadow-none bg-background">
                               {event.event_status}
                             </Badge>
                           </div>
                         ))
                       ) : (
-                        <div className="text-center py-6 border border-dashed rounded-md bg-muted/5">
-                          <p className="text-xs text-muted-foreground">No linked events.</p>
+                        <div className="text-center py-8 border border-dashed rounded-md bg-muted/5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">No linked events found</p>
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="px-3 py-2 sm:px-4 sm:py-2 border-t bg-muted flex items-center justify-end shrink-0">
+                <div className="px-5 py-4 border-t bg-muted/20 flex justify-end shrink-0 mt-auto">
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => setSelectedCourse(null)}
-                    className="h-9 rounded-md px-4"
+                    className="h-10 px-6 rounded-md font-black text-[10px] text-black uppercase tracking-widest shadow-none bg-muted hover:bg-muted/80 active:scale-[0.98] transition-all"
                   >
                     Close Details
                   </Button>

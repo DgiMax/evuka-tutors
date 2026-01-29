@@ -247,7 +247,7 @@ export default function OrgCreatePage() {
     localStorage.removeItem(storageKey);
     localStorage.removeItem(`${storageKey}_step`);
     toast.info("Draft discarded.");
-    router.push("/dashboard");
+    router.push("/organizations");
   };
 
   const nextStep = async () => {

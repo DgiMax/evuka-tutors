@@ -6,21 +6,32 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import api from "@/lib/api/axios";
+import { X, Loader2, Save, Clock } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input as ShadcnInput } from "@/components/ui/input";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogClose 
+} from "@/components/ui/dialog";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-// --- ZOD SCHEMA ---
 const lessonEditSchema = z.object({
   title: z.string().min(3, "Title is required.").max(100),
   description: z.string().optional(),
-  date: z.string().min(1, "Date is required."),
-  start_time: z.string().min(1, "Start time is required."),
-  end_time: z.string().min(1, "End time is required."),
+  start_datetime: z.string().min(1, "Start date and time are required."),
+  end_datetime: z.string().min(1, "End date and time are required."),
 });
 
 type LessonEditFormValues = z.infer<typeof lessonEditSchema>;
@@ -28,29 +39,45 @@ type LessonEditFormValues = z.infer<typeof lessonEditSchema>;
 interface LessonEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  lesson: { id: number; title: string; description: string; date: string; start_time: string; end_time: string; } | null;
+  lesson: { 
+    id: number; 
+    title: string; 
+    description: string; 
+    start_datetime: string; 
+    end_datetime: string; 
+  } | null;
   onSuccess: () => void;
 }
 
-export const LessonEditModal: React.FC<LessonEditModalProps> = ({ isOpen, onClose, lesson, onSuccess }) => {
+const inputStyles = "h-12 px-4 rounded-md border-border bg-background transition-colors hover:border-secondary focus-visible:ring-0 focus-visible:border-secondary shadow-none outline-none w-full text-base";
+
+export function LessonEditModal({ 
+  isOpen, 
+  onClose, 
+  lesson, 
+  onSuccess 
+}: LessonEditModalProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LessonEditFormValues>({
     resolver: zodResolver(lessonEditSchema),
   });
 
-  // Pre-fill the form when the modal opens
   useEffect(() => {
-    if (lesson) {
+    if (lesson && isOpen) {
+      const formatForInput = (isoString: string) => {
+        if (!isoString) return "";
+        return isoString.slice(0, 16);
+      };
+
       form.reset({
         title: lesson.title,
         description: lesson.description || "",
-        date: lesson.date,
-        start_time: lesson.start_time,
-        end_time: lesson.end_time,
+        start_datetime: formatForInput(lesson.start_datetime),
+        end_datetime: formatForInput(lesson.end_datetime),
       });
     }
-  }, [lesson, form]);
+  }, [lesson, isOpen, form]);
   
   const handleFormSubmit = async (data: LessonEditFormValues) => {
     if (!lesson) return;
@@ -59,9 +86,9 @@ export const LessonEditModal: React.FC<LessonEditModalProps> = ({ isOpen, onClos
     try {
       await api.patch(`/live/lessons/${lesson.id}/`, data);
       toast.success("Lesson updated successfully!");
-      onSuccess(); // This will close the modal and refresh the list
+      onSuccess();
+      onClose();
     } catch (error) {
-      console.error("Failed to update lesson:", error);
       toast.error("Failed to update lesson.");
     } finally {
       setIsLoading(false);
@@ -70,94 +97,103 @@ export const LessonEditModal: React.FC<LessonEditModalProps> = ({ isOpen, onClos
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit Lesson</DialogTitle>
-          <DialogDescription>
-            Postpone, rename, or update details for this single lesson.
-          </DialogDescription>
+      <DialogContent className="w-[95%] sm:max-w-[480px] lg:max-w-[650px] p-0 gap-0 max-h-[90vh] md:max-h-[85vh] h-auto min-h-[300px] flex flex-col border-border/80 rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[5%] md:top-[10%] translate-y-0 shadow-none">
+
+        <DialogHeader className="px-4 md:px-6 py-3 md:py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+          <DialogTitle className="text-base md:text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary" />
+            Edit Lesson Session
+          </DialogTitle>
+          <DialogClose className="rounded-md p-2 hover:bg-muted transition">
+            <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+          </DialogClose>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <ShadcnInput {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="col-span-3 sm:col-span-1">
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <ShadcnInput type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="start_time"
-                render={({ field }) => (
-                  <FormItem className="col-span-3 sm:col-span-1">
-                    <FormLabel>Start Time</FormLabel>
-                    <FormControl>
-                      <ShadcnInput type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="end_time"
-                render={({ field }) => (
-                  <FormItem className="col-span-3 sm:col-span-1">
-                    <FormLabel>End Time</FormLabel>
-                    <FormControl>
-                      <ShadcnInput type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading} className="rounded bg-green-600 hover:bg-green-700">
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <Form {...form}>
+            <form id="lesson-edit-form" onSubmit={form.handleSubmit(handleFormSubmit)} className="h-full flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 md:py-8 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:border-x-[1px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content">
+                
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-[10px] md:text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Lesson Title</FormLabel>
+                      <FormControl>
+                        <Input {...field} className={inputStyles} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                  <FormField
+                    control={form.control}
+                    name="start_datetime"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-[10px] md:text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Starts At</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} className={inputStyles} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="end_datetime"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-[10px] md:text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Ends At</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} className={inputStyles} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-[10px] md:text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1">Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          className="resize-none text-base border-border bg-background transition-colors hover:border-secondary focus-visible:ring-0 focus-visible:border-secondary shadow-none outline-none w-full min-h-[100px] md:min-h-[120px] p-4" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </form>
+          </Form>
+        </div>
+
+        <div className="px-4 md:px-6 py-3 md:py-4 border-t bg-background shrink-0 mt-auto">
+          <Button 
+            type="submit" 
+            form="lesson-edit-form" 
+            disabled={isLoading} 
+            className="w-full h-12 text-sm md:text-base font-bold shadow-sm transition-all active:scale-[0.98] bg-primary hover:bg-primary/90"
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-5 w-5" />
+            )} 
+            Save Changes
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
-};
+}

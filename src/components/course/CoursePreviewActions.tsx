@@ -1,48 +1,31 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { Edit, Eye, Video } from "lucide-react";
-import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
-
+import { Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
 interface CoursePreviewActionsProps {
   slug: string;
 }
 
 export const CoursePreviewActions = ({ slug }: CoursePreviewActionsProps) => {
-  const { activeSlug } = useActiveOrg();
-
-  // Base URL prefix for routing depending on organization context
-  const basePrefix = activeSlug ? `${activeSlug}` : '';
-
   return (
     <div className="flex flex-col gap-3 w-full">
-      {/* Edit Course Button */}
-      <Link
-        href={`${basePrefix}/courses/${slug}/edit`}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#2694C6] text-white text-sm font-bold rounded hover:bg-[#227fa8] transition-colors"
-      >
-        <Edit className="w-4 h-4" />
-        Edit Course
-      </Link>
+      <Button disabled className="w-full h-12 bg-[#2694C6] text-white font-black uppercase text-[11px] tracking-widest rounded-md shadow-none opacity-90 cursor-not-allowed transition-none">
+        Buy Now
+      </Button>
+      <div className="flex items-center gap-2">
+        <Button disabled variant="outline" className="flex-grow h-12 border-2 border-gray-900 text-gray-900 bg-white font-black uppercase text-[11px] tracking-widest rounded-md shadow-none cursor-not-allowed transition-none">
+          Add to Cart
+        </Button>
 
-      {/* Preview Learning Button */}
-      <Link
-        href={`${basePrefix}/courses/${slug}/preview-learning`}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-[#2694C6] text-[#2694C6] text-sm font-bold rounded hover:bg-blue-50 transition-colors"
-      >
-        <Eye className="w-4 h-4" />
-        Preview Learning
-      </Link>
-
-      {/* View Live Classes Button */}
-       <Link
-        href={`${basePrefix}/courses/${slug}/live-classes`}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 text-gray-700 text-sm font-bold rounded hover:bg-gray-50 transition-colors"
-      >
-        <Video className="w-4 h-4" />
-        Manage Live Classes
-      </Link>
+        <Button disabled variant="outline" size="icon" className="h-12 w-12 shrink-0 border-2 border-gray-900 text-gray-900 bg-white rounded-md shadow-none cursor-not-allowed transition-none">
+          <Heart size={20} />
+        </Button>
+      </div>
+      
+      <p className="text-[10px] text-center text-muted-foreground font-bold uppercase tracking-tight mt-2">
+        30-Day Money-Back Guarantee
+      </p>
     </div>
   );
 };

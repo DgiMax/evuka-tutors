@@ -25,7 +25,7 @@ export default function GoogleLoginBtn() {
       await fetchCurrentUser();
       
       toast.success("Logged in with Google!");
-      router.push("/dashboard"); 
+      router.push("/"); 
       
     } catch (error: any) {
       console.error("Google Login Error:", error);

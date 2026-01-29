@@ -38,7 +38,6 @@ import Step1Basics from "./steps/Step1_Basics";
 import Step2Details from "./steps/Step2_Details";
 import Step3Expertise from "./steps/Step3_Expertise";
 
-// --- Info Banner Component ---
 const InfoBanner = () => (
   <div className="bg-blue-50/80 border border-blue-200 rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 max-w-2xl mx-4 sm:mx-auto">
     <div className="flex gap-3">
@@ -107,7 +106,7 @@ export default function TutorOnboardingPage() {
       });
       await fetchCurrentUser();
       toast.success("Tutor profile created successfully!");
-      router.push("/dashboard");
+      router.push("/");
     } catch (err: any) {
       const message = err.response?.data?.detail || err.message || "Failed to submit profile.";
       toast.error(message);

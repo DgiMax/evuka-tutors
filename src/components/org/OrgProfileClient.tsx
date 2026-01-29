@@ -198,7 +198,7 @@ export default function OrgProfileClient() {
             {isAdminOrOwner && (
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
                 <Button
-                  onClick={() => router.push(`/${activeSlug}/dashboard`)}
+                  onClick={() => router.push(`/${activeSlug}`)}
                   variant="secondary"
                   className="bg-white/10 text-white border-0 hover:bg-white/20 hover:text-white backdrop-blur-sm"
                 >

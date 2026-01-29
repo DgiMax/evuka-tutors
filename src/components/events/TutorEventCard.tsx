@@ -100,7 +100,7 @@ export default function TutorEventCard({ event, makeContextLink }: Props) {
               size="sm"
               className="h-7 px-3 text-[12px] rounded-md bg-primary text-white"
             >
-              <Link href={makeContextLink(`/events/${event.slug}/manage`)}>Manage</Link>
+              <Link href={makeContextLink(`/events/${event.slug}`)}>Manage</Link>
             </Button>
 
             <DropdownMenu>
@@ -125,7 +125,7 @@ export default function TutorEventCard({ event, makeContextLink }: Props) {
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link
-                    href={makeContextLink(`/events/${event.slug}`)}
+                    href={makeContextLink(`/events/${event.slug}/preview`)}
                     className="flex items-center w-full"
                   >
                     <Eye className="h-3.5 w-3.5 mr-2" />

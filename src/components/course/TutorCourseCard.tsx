@@ -49,6 +49,8 @@ export default function TutorCourseCard({ course, makeContextLink }: Props) {
     }
   };
 
+  const isPublished = course.status === "published";
+
   return (
     <Card className="flex flex-col sm:flex-row overflow-hidden border-border bg-card p-2 rounded-md transition-colors duration-200 hover:border-primary shadow-none">
       <div className="w-full h-32 sm:w-40 sm:h-full flex-shrink-0 relative rounded-t-md sm:rounded-l-md sm:rounded-t-none overflow-hidden">
@@ -100,7 +102,7 @@ export default function TutorCourseCard({ course, makeContextLink }: Props) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link href={makeContextLink(`/courses/${course.slug}/preview-course`)} className="flex items-center w-full">
+                  <Link href={makeContextLink(`/courses/${course.slug}/preview`)} className="flex items-center w-full">
                     <View className="h-3.5 w-3.5 mr-2" /> View
                   </Link>
                 </DropdownMenuItem>
@@ -109,10 +111,20 @@ export default function TutorCourseCard({ course, makeContextLink }: Props) {
                     <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={makeContextLink(`/courses/${course.slug}/live-classes`)} className="flex items-center w-full">
-                    <CalendarCheck2 className="h-3.5 w-3.5 mr-2" /> Live Classes
-                  </Link>
+                <DropdownMenuItem 
+                  asChild={isPublished} 
+                  disabled={!isPublished}
+                  className={!isPublished ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  {isPublished ? (
+                    <Link href={makeContextLink(`/courses/${course.slug}/live-classes`)} className="flex items-center w-full">
+                      <CalendarCheck2 className="h-3.5 w-3.5 mr-2" /> Live Classes
+                    </Link>
+                  ) : (
+                    <div className="flex items-center w-full">
+                      <CalendarCheck2 className="h-3.5 w-3.5 mr-2" /> Live Classes
+                    </div>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

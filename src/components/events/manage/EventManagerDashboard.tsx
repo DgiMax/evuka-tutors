@@ -195,7 +195,7 @@ export default function EventManagerDashboard() {
 
         <div className="flex items-center gap-2 pt-2 md:pt-0">
           <Button variant="outline" asChild size="sm" className="w-full md:w-auto shadow-none">
-            <Link href={`/events/${eventData.slug}`} target="_blank">
+            <Link href={`/events/${eventData.slug}/preview`} target="_blank">
               <Eye className="mr-2 h-4 w-4" /> Preview Page
             </Link>
           </Button>
