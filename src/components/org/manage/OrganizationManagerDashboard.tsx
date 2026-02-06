@@ -10,7 +10,8 @@ import {
   Layers,
   Globe,
   Shield,
-  Eye,
+  Eye, 
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
@@ -19,7 +20,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import api from "@/lib/api/axios";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -72,9 +73,7 @@ export default function OrganizationManagerDashboard() {
   const { data: orgData, isLoading, isError } = useQuery<OrganizationManagementData>({
     queryKey: ["orgManagement", orgSlug],
     queryFn: async () => {
-      const { data } = await api.get(`/organizations/${orgSlug}/`, {
-          headers: { "X-Organization-Slug": orgSlug } 
-      });
+      const { data } = await api.get(`/organizations/${orgSlug}/manage/`);
       return data;
     },
     enabled: !!orgSlug,
@@ -147,7 +146,7 @@ export default function OrganizationManagerDashboard() {
         <div className="flex items-center gap-2 pt-2 md:pt-0">
           {orgData.status === 'approved' && (
             <Button variant="outline" asChild size="sm" className="w-full md:w-auto shadow-none">
-                <Link href={`/${orgData.slug}`} target="_blank">
+                <Link href={`/organizations/${orgData.slug}`} target="_blank">
                     <Eye className="mr-2 h-4 w-4" /> Preview Page
                 </Link>
             </Button>
@@ -207,7 +206,14 @@ export default function OrganizationManagerDashboard() {
         </div>
 
         <div className="mt-2 min-h-[400px]">
-          <OrgSettingsTab org={orgData} activeTab={activeTab} />
+          {orgData && orgData.slug ? (
+            <OrgSettingsTab org={orgData} activeTab={activeTab} />
+          ) : (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2 text-sm text-muted-foreground">Initializing settings...</p>
+            </div>
+          )}
         </div>
       </Tabs>
     </div>

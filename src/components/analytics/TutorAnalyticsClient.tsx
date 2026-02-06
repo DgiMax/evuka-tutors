@@ -6,6 +6,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
 import api from "@/lib/api/axios";
+import { toast } from "sonner";
 import { 
   DollarSign, 
   Users, 
@@ -151,6 +152,7 @@ export default function TutorAnalyticsView() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -166,6 +168,27 @@ export default function TutorAnalyticsView() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleExportPDF = () => {
+    setIsExporting(true);
+
+    api.get("/users/tutors-export-pdf/", { 
+      responseType: 'blob',
+      headers: activeSlug ? { "X-Organization-Slug": activeSlug } : {} 
+    })
+      .then((response) => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Tutor_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success("Tutor report downloaded");
+      })
+      .catch(() => toast.error("Failed to generate report"))
+      .finally(() => setIsExporting(false));
   };
 
   const handleCourseClick = async (courseId: string) => {
@@ -238,14 +261,25 @@ export default function TutorAnalyticsView() {
   if (!data) return null;
 
   return (
-    <div className="container mx-auto px-2 md:px-4 py-6 max-w-7xl space-y-6">
+    <div className="container mx-auto px-4 py-8 max-w-7xl space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
           <p className="text-sm text-muted-foreground mt-1">Growth and engagement metrics for your curriculum.</p>
         </div>
-        <Button variant="outline" size="sm" className="h-9 gap-2 w-full sm:w-auto rounded-md">
-          <Download className="h-3.5 w-3.5" /> Export Report
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          className="h-9 gap-2 w-full sm:w-auto rounded-md"
+        >
+          {isExporting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          {isExporting ? "Generating..." : "Export Report"}
         </Button>
       </div>
 

@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Eye,
-  Lock,
+  Lock, PlayCircle,
 } from "lucide-react";
 import Link from "next/link";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
@@ -139,6 +139,10 @@ export default function CourseManagerDashboard() {
     return dashboardData.status === 'draft' || dashboardData.status === 'archived';
   }, [dashboardData]);
 
+  const makeContextLink = (path: string) => {
+    return activeOrgSlug ? `/${activeOrgSlug}${path}` : path;
+  };
+
   const activeTab = useMemo(() => {
     if (!dashboardData) return "curriculum";
     
@@ -216,12 +220,35 @@ export default function CourseManagerDashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 pt-2 md:pt-0">
-          <Button variant="outline" asChild size="sm" className="w-full md:w-auto shadow-none">
-            <Link href={`/courses/${dashboardData.slug}/preview`}>
-              <Eye className="mr-2 h-4 w-4" /> Preview Page
+        <div className="flex items-center gap-3 pt-2 md:pt-0">
+          <Button variant="outline" asChild size="sm" className="h-9 px-4 rounded-md shadow-none border-gray-200">
+            <Link href={makeContextLink(`/courses/${dashboardData!.slug}/preview`)}>
+              <Eye className="mr-2 h-4 w-4" /> 
+              <span className="text-[10px] font-black uppercase tracking-widest text-gray-700">Landing Page</span>
             </Link>
           </Button>
+
+          {dashboardData?.status === "published" ? (
+            <Button 
+              asChild 
+              size="sm" 
+              className="h-9 px-4 rounded-md shadow-none bg-[#2694C6] hover:bg-[#1e7ca8]"
+            >
+              <Link href={makeContextLink(`/courses/${dashboardData!.slug}/preview-learning`)}>
+                <PlayCircle className="mr-2 h-4 w-4" /> 
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Preview Learning</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button 
+              disabled 
+              size="sm" 
+              className="h-9 px-4 rounded-md shadow-none bg-gray-100 text-gray-400 border border-gray-200"
+            >
+              <Lock className="mr-2 h-3.5 w-3.5" /> 
+              <span className="text-[10px] font-black uppercase tracking-widest">Preview Learning</span>
+            </Button>
+          )}
         </div>
       </div>
 

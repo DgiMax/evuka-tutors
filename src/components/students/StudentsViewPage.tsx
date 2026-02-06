@@ -156,8 +156,8 @@ export default function StudentsViewPage() {
   const ActionsMenu = ({ s }: { s: StudentEnrollment }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted rounded-md shadow-none">
-          <MoreVertical className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md shadow-none p-0">
+          <MoreVertical className="h-4 w-4 text-gray-500 transition-colors duration-200 group-hover:text-[#2694C6]" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="rounded-md border-border shadow-none">

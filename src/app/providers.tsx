@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect, useRef } from 'react';
 import { AuthProvider } from '@/context/AuthContext';
@@ -10,6 +10,7 @@ import { GoogleProvider } from "@/context/GoogleProvider";
 export function Providers({ children }: { children: React.ReactNode }) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const activeSlugRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -17,7 +18,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const storedRole = localStorage.getItem('activeOrgRole');
 
     if (storedSlug && storedSlug !== 'null' && storedSlug !== 'undefined') {
-      console.log('[Providers] Restoring activeSlug from localStorage:', storedSlug);
       setActiveSlug(storedSlug);
       activeSlugRef.current = storedSlug;
     }
@@ -57,18 +57,24 @@ export function Providers({ children }: { children: React.ReactNode }) {
       return config;
     });
 
-    console.log('[Providers] Axios interceptor registered');
-
     return () => {
       api.interceptors.request.eject(interceptorId);
-      console.log('[Providers] Axios interceptor ejected');
     };
   }, []);
 
   return (
     <GoogleProvider>
       <AuthProvider>
-        <ActiveContext.Provider value={{ activeSlug, setActiveSlug, activeRole, setActiveRole }}>
+        <ActiveContext.Provider 
+          value={{ 
+            activeSlug, 
+            setActiveSlug, 
+            activeRole, 
+            setActiveRole, 
+            isVerifying, 
+            setIsVerifying 
+          }}
+        >
           <TanstackQueryProvider>
             {children}
           </TanstackQueryProvider>

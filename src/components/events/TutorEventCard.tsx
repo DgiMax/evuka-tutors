@@ -1,17 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CalendarDays, Pencil, MoreVertical, Eye } from "lucide-react";
+import { CalendarDays, Pencil, MoreVertical, Eye, Video, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export interface TutorEvent {
   slug: string;
@@ -20,6 +23,9 @@ export interface TutorEvent {
   overview: string;
   start_time: string;
   computed_status: string;
+  event_type: string;
+  chat_room_id?: string;
+  meeting_link?: string;
 }
 
 interface Props {
@@ -45,6 +51,37 @@ const getStatusClass = (status: string) => {
 };
 
 export default function TutorEventCard({ event, makeContextLink }: Props) {
+  const router = useRouter();
+  const [canJoin, setCanJoin] = useState(false);
+
+  useEffect(() => {
+    const checkTime = () => {
+      const now = new Date();
+      const startTime = new Date(event.start_time);
+      const bufferTime = new Date(startTime.getTime() - 60 * 60 * 1000);
+      setCanJoin(now >= bufferTime && event.event_type !== 'physical');
+    };
+
+    checkTime();
+    const timer = setInterval(checkTime, 30000);
+    return () => clearInterval(timer);
+  }, [event.start_time, event.event_type]);
+
+  const handleLaunch = () => {
+    if (event.chat_room_id && event.chat_room_id.trim() !== "") {
+      const targetPath = makeContextLink(`/live-events/${event.slug}`);
+      toast.success("Opening event page...");
+      router.push(targetPath);
+    } 
+    else if (event.meeting_link && event.meeting_link.trim() !== "") {
+      toast.success("Rediresting you to Event Page...");
+      window.open(event.meeting_link, '_blank');
+    } 
+    else {
+      toast.error("Failed to join Meeting.");
+    }
+  };
+
   const formattedStartDate = new Date(event.start_time).toLocaleDateString(
     "en-US",
     {
@@ -53,6 +90,8 @@ export default function TutorEventCard({ event, makeContextLink }: Props) {
       year: "numeric",
     }
   );
+
+  const isOnline = event.event_type === 'online' || event.event_type === 'hybrid';
 
   return (
     <Card className="flex flex-col sm:flex-row overflow-hidden border-border bg-card p-0 rounded-md transition-colors duration-200 hover:border-primary shadow-none">
@@ -95,10 +134,22 @@ export default function TutorEventCard({ event, makeContextLink }: Props) {
           </span>
 
           <div className="flex items-center gap-1">
+            {canJoin && isOnline && (
+              <Button
+                onClick={handleLaunch}
+                size="sm"
+                className="h-7 px-3 text-[10px] font-black uppercase tracking-tighter rounded-md bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                {event.chat_room_id ? <Video className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
+                Launch
+              </Button>
+            )}
+
             <Button
               asChild
+              variant="outline"
               size="sm"
-              className="h-7 px-3 text-[12px] rounded-md bg-primary text-white"
+              className="h-7 px-3 text-[12px] rounded-md border-border hover:bg-primary hover:text-white"
             >
               <Link href={makeContextLink(`/events/${event.slug}`)}>Manage</Link>
             </Button>

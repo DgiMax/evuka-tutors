@@ -39,21 +39,16 @@ export default function RegisterPage() {
     setError(null);
 
     try {
-      await register(username, email, password); 
+      const origin = window.location.origin;
+      await register(username, email, password, origin); 
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
-      // 1. ROBUST ERROR LOGIC (Adapted for Registration)
-      // Check for specific fields first, then general errors
       let errorMessage = "Registration failed. Please try again.";
 
       if (err.response?.data) {
           const data = err.response.data;
-          // Priority 1: Backend explicit error message
           if (data.detail) errorMessage = data.detail;
-          // Priority 2: Non-field errors (e.g. "Password too common")
           else if (data.non_field_errors) errorMessage = data.non_field_errors[0];
-          // Priority 3: Field specific errors (e.g. { username: ["Exists"] })
-          // We grab the first error from the first key we find
           else {
               const firstKey = Object.keys(data)[0];
               if (firstKey && Array.isArray(data[firstKey])) {
@@ -111,7 +106,6 @@ export default function RegisterPage() {
               required
             />
 
-            {/* Password Requirements Box */}
             <div className="bg-blue-50 border border-blue-100 rounded-md p-3 flex gap-3 items-start text-left">
               <Info className={`w-4 h-4 mt-0.5 shrink-0 ${PRIMARY_TEXT_CLASS}`} />
               <div className="text-xs text-gray-600 leading-relaxed">
@@ -124,7 +118,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Password Input */}
             <div className="relative">
               <Input
                 type={showPassword ? "text" : "password"}
@@ -147,7 +140,6 @@ export default function RegisterPage() {
               </button>
             </div>
 
-            {/* Confirm Password Input */}
             <div className="relative">
               <Input
                 type={showConfirmPassword ? "text" : "password"}
@@ -170,7 +162,6 @@ export default function RegisterPage() {
               </button>
             </div>
 
-            {/* 2. STYLED ERROR ALERT BOX */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
                 <div className="flex">
@@ -209,7 +200,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="flex justify-center py-6">
-          <GoogleLoginBtn />
+        <GoogleLoginBtn />
       </div>
 
     </div>

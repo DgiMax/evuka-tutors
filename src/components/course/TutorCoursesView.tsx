@@ -121,7 +121,7 @@ export default function TutorCoursesClient() {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-foreground self-start md:self-center">
           My Courses

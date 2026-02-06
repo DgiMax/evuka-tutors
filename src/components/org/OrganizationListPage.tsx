@@ -73,7 +73,7 @@ export default function OrganizationListPage() {
     <div className="container mx-auto py-8 px-4 max-w-7xl space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">My Organizations</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Organizations</h1>
             <p className="text-muted-foreground mt-1">Manage the schools and networks you own or teach at.</p>
         </div>
 
@@ -203,7 +203,7 @@ export default function OrganizationListPage() {
                         <span>Manage Access</span>
                     </div>
                     
-                    <Link href={`/${org.slug}`} passHref>
+                    <Link href={`/organizations/${org.slug}`} passHref>
                         <Button 
                             variant="ghost" 
                             size="sm" 

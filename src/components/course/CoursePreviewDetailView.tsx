@@ -101,7 +101,7 @@ export default function CoursePreviewDetailView() {
   if (loading) return <CourseDetailsSkeleton />;
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen mb-16">
       <div className="bg-[#1C1D1F] text-white py-10 md:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-6">

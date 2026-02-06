@@ -1,18 +1,15 @@
 "use client";
 
-// --- Imports ---
 import { useAuth } from "@/context/AuthContext";
 import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import api from "@/lib/api/axios"; // Your configured axios instance
+import api from "@/lib/api/axios";
 import React, { useEffect, useState, ChangeEvent, FormEvent } from "react";
 import { toast } from "sonner";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 import {
-  Settings,
-  LogOut,
-  ShieldAlert,
-  Trash2,
   Camera,
   AlertTriangle,
   User,
@@ -20,15 +17,27 @@ import {
   Building,
   LifeBuoy,
   Mail,
-  LoaderCircle,
+  LogOut,
+  ShieldAlert,
+  Trash2,
+  Save,
+  X,
+  AlertCircle
 } from "lucide-react";
-// ✅ 1. Import new components
+
 import RequestsInvitationsList from "@/components/dashboard/RequestsInvitationsList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
 
-// --- Types ---
 interface Subject {
   name: string;
   slug: string;
@@ -39,7 +48,7 @@ interface Membership {
   role: string;
 }
 interface TutorProfileData {
-  user: string; // username
+  user: string;
   display_name: string;
   headline: string;
   bio: string;
@@ -62,12 +71,140 @@ type ProfileFormData = {
   intro_video_preview: string | null;
 };
 
-// --- Main Page Component ---
+const Loader2 = ({ className, size = 16 }: { className?: string; size?: number }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+  </svg>
+);
+
+interface ConfirmDeleteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+  isLoading?: boolean;
+}
+
+const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  isLoading = false,
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent 
+        className="w-[95%] sm:max-w-[420px] p-0 gap-0 border-border/80 rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[5%] md:top-[10%] translate-y-0 shadow-none"
+      >
+        <DialogHeader className="px-4 md:px-6 py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-red-100/50 flex items-center justify-center shrink-0 border border-red-200/60">
+              <Trash2 className="h-4 w-4 text-red-600" />
+            </div>
+            <DialogTitle className="text-base md:text-lg font-bold tracking-tight text-foreground">
+              {title}
+            </DialogTitle>
+          </div>
+          <DialogClose className="rounded-md p-2 hover:bg-muted transition -mr-2">
+            <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+          </DialogClose>
+        </DialogHeader>
+
+        <div className="p-4 md:p-6">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm text-foreground/80 leading-relaxed font-medium">
+                Are you sure you want to proceed with this action?
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {description}
+              </p>
+            </div>
+
+            <div className="bg-red-50/50 border border-red-100 rounded-md p-3 flex gap-3 items-start">
+              <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+              <p className="text-[10px] md:text-[11px] text-red-700 font-bold uppercase tracking-wider leading-normal">
+                This action is permanent and cannot be undone.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 md:px-6 py-4 border-t bg-muted/20 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0 mt-auto">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={isLoading}
+            className="h-11 md:h-10 w-full sm:w-auto px-6 rounded-md font-bold text-[11px] md:text-xs uppercase tracking-widest border-border shadow-none bg-background"
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={onConfirm} 
+            disabled={isLoading}
+            className="h-11 md:h-10 w-full sm:w-auto px-6 rounded-md font-bold text-[11px] md:text-xs uppercase tracking-widest shadow-none bg-red-600 hover:bg-red-700"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin" />
+                <span>Processing...</span>
+              </div>
+            ) : (
+              "Confirm Delete"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const ProfileSkeleton = () => (
+  <SkeletonTheme baseColor="#e5e7eb" highlightColor="#f3f4f6">
+    <div className="container mx-auto px-4 py-12 max-w-6xl">
+      <div className="flex flex-col lg:flex-row gap-8">
+        <aside className="lg:w-1/4 space-y-4">
+          <div className="bg-card border border-border p-6 rounded-md flex flex-col items-center">
+            <Skeleton circle width={140} height={140} />
+            <Skeleton width={120} height={24} className="mt-4" />
+            <Skeleton width={80} height={16} className="mt-2" />
+          </div>
+        </aside>
+        <main className="flex-1 space-y-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card border border-border p-6 rounded-md">
+              <Skeleton width={150} height={24} className="mb-6" />
+              <div className="space-y-4">
+                <Skeleton height={40} />
+                <Skeleton height={100} />
+              </div>
+            </div>
+          ))}
+        </main>
+      </div>
+    </div>
+  </SkeletonTheme>
+);
+
 export default function TutorProfilePage() {
   const { user, loading: authLoading, logout } = useAuth();
   const router = useRouter();
 
-  // --- State ---
   const [profileData, setProfileData] = useState<TutorProfileData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData | null>(null);
@@ -76,13 +213,10 @@ export default function TutorProfilePage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [signOutLoading, setSignOutLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // --- Data Fetching ---
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login");
-    }
+    if (!authLoading && !user) router.push("/login");
   }, [user, authLoading, router]);
 
   useEffect(() => {
@@ -90,70 +224,37 @@ export default function TutorProfilePage() {
       if (user) {
         try {
           setLoading(true);
-          setError(null);
-          const { data } = await api.get<TutorProfileData>(
-            "/users/profile/tutor/"
-          );
+          const { data } = await api.get<TutorProfileData>("/users/profile/tutor/");
           setProfileData(data);
-
           setFormData({
             display_name: data.display_name,
             headline: data.headline,
             bio: data.bio,
             education: data.education || "",
-            subjects: data.subjects_list.map((s: Subject) => s.name).join(", "),
+            subjects: data.subjects_list.map((s) => s.name).join(", "),
             profile_image_file: null,
             profile_image_preview: data.profile_image,
             intro_video_file: null,
             intro_video_preview: data.intro_video || null,
           });
         } catch (error: any) {
-          if (error.response && error.response.status === 404) {
-            console.log("Profile not found (404), redirecting to onboarding...");
-            router.push("/onboarding");
-          } else {
-            console.error("Failed to fetch profile data:", error);
-            setError("Failed to load profile. Please try refreshing the page.");
-            toast.error("Failed to load profile. Please try refreshing the page.");
-          }
+          if (error.response?.status === 404) router.push("/onboarding");
+          else toast.error("Failed to load profile.");
         } finally {
           setLoading(false);
         }
       }
     };
-    if (!authLoading && user) {
-      fetchProfileData();
-    }
+    if (!authLoading && user) fetchProfileData();
   }, [user, authLoading, router]);
 
-  // --- Event Handlers ---
-
-  const handleSignOut = async () => {
-    setSignOutLoading(true);
-    await logout();
-    router.push("/login");
-  };
-
-  const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    if (formData) {
-      setFormData({
-        ...formData,
-        [e.target.name]: e.target.value,
-      });
-    }
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (formData) setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && formData) {
+    if (e.target.files?.[0] && formData) {
       const file = e.target.files[0];
-      if (
-        formData.profile_image_preview &&
-        formData.profile_image_preview.startsWith("blob:")
-      ) {
-        URL.revokeObjectURL(formData.profile_image_preview);
-      }
       setFormData({
         ...formData,
         profile_image_file: file,
@@ -162,27 +263,9 @@ export default function TutorProfilePage() {
     }
   };
 
-  const handleVideoChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && formData) {
-      const file = e.target.files[0];
-      if (
-        formData.intro_video_preview &&
-        formData.intro_video_preview.startsWith("blob:")
-      ) {
-        URL.revokeObjectURL(formData.intro_video_preview);
-      }
-      setFormData({
-        ...formData,
-        intro_video_file: file,
-        intro_video_preview: URL.createObjectURL(file),
-      });
-    }
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!formData) return;
-
     setSubmitLoading(true);
 
     const data = new FormData();
@@ -191,533 +274,204 @@ export default function TutorProfilePage() {
     data.append("bio", formData.bio);
     data.append("education", formData.education);
 
-    const subjectNames = formData.subjects
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    subjectNames.forEach((name) => {
-      data.append("subjects", name);
+    formData.subjects.split(",").forEach((name) => {
+      if (name.trim()) data.append("subjects", name.trim());
     });
 
-    if (formData.profile_image_file) {
-      data.append("profile_image", formData.profile_image_file);
-    }
-
-    if (formData.intro_video_file) {
-      data.append("intro_video", formData.intro_video_file);
-    }
+    if (formData.profile_image_file) data.append("profile_image", formData.profile_image_file);
+    if (formData.intro_video_file) data.append("intro_video", formData.intro_video_file);
 
     try {
-      const { data: updatedProfile } = await api.patch<TutorProfileData>(
-        "/users/profile/tutor/",
-        data,
-        {
-          headers: { "Content-Type": "multipart/form-data" },
-        }
-      );
-
-      // Update state with new data
-      setProfileData(updatedProfile);
-      setFormData({
-        display_name: updatedProfile.display_name,
-        headline: updatedProfile.headline,
-        bio: updatedProfile.bio,
-        education: updatedProfile.education || "",
-        subjects: updatedProfile.subjects_list
-          .map((s: Subject) => s.name)
-          .join(", "),
-        profile_image_file: null,
-        profile_image_preview: updatedProfile.profile_image,
-        intro_video_file: null,
-        intro_video_preview: updatedProfile.intro_video || null,
+      const { data: updated } = await api.patch<TutorProfileData>("/users/profile/tutor/", data, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-
-      setIsEditing(false); // Exit edit mode
-
-      toast.success("Profile updated successfully!");
+      setProfileData(updated);
+      setIsEditing(false);
+      toast.success("Profile updated!");
     } catch (error: any) {
-      console.error("Failed to update profile:", error);
-
-      let errorMessage =
-        "Failed to update profile. Please check your inputs and try again.";
-      if (error.response && error.response.data) {
-        const errors = error.response.data;
-        if (errors.intro_video) {
-          errorMessage = `Video Error: ${errors.intro_video[0]}`;
-        } else if (errors.subjects) {
-          errorMessage = `Subjects Error: ${errors.subjects[0]}`;
-        } else if (errors.detail) {
-          errorMessage = errors.detail;
-        }
-      }
-      toast.error(errorMessage);
+      toast.error("Update failed. Please check file sizes or inputs.");
     } finally {
       setSubmitLoading(false);
     }
   };
-  // --- END UPDATED 'handleSubmit' ---
 
-  // --- Loading/Error States (Themed) ---
-  if (authLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading Profile...</p>
-      </div>
-    );
-  }
+  if (authLoading || loading) return <ProfileSkeleton />;
+  if (!user || !profileData || !formData) return null;
 
-  if (!user || !profileData || !formData) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  // --- Render (Themed) ---
   return (
-    <div className="bg-background min-h-screen py-12">
+    <div className="bg-[#EFFAFC] min-h-screen py-12">
       <div className="container mx-auto px-4 max-w-6xl">
-        <div className="flex flex-col lg:flex-row gap-8 xl:gap-12">
-          {/* === Left Sidebar (Profile Card) === */}
-          <aside className="lg:w-1/4 lg:max-w-xs flex-shrink-0 lg:sticky lg:top-12">
-            {/* UPDATED: Uses themed card, border, and radius */}
-            <div className="bg-card border border-border p-6 rounded-md space-y-4 flex flex-col items-center">
-              <div className="relative w-40 h-40 bg-muted mb-4 overflow-hidden rounded-full">
+        <div className="flex flex-col lg:flex-row gap-8">
+          
+          <aside className="lg:w-1/4 flex-shrink-0">
+            <div className="bg-card border border-border p-6 rounded-md flex flex-col items-center shadow-none">
+              <div className="relative w-36 h-36 bg-muted mb-6 overflow-hidden rounded-full border-4 border-background">
                 <Image
-                  src={
-                    formData.profile_image_preview ||
-                    "https://placehold.co/160x160/f5f7f9/2d3339?text=?"
-                  }
+                  src={formData.profile_image_preview || "/avatar-placeholder.png"}
                   alt="Profile"
-                  width={160}
-                  height={160}
+                  width={144}
+                  height={144}
                   className="w-full h-full object-cover"
                   unoptimized
                 />
                 {isEditing && (
-                  <label
-                    htmlFor="profile_image_file"
-                    className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-pointer text-white opacity-0 hover:opacity-100 transition-opacity rounded-full"
-                  >
-                    <Camera size={24} />
-                    <input
-                      type="file"
-                      id="profile_image_file"
-                      name="profile_image_file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
+                  <label className="absolute inset-0 bg-black/40 flex items-center justify-center cursor-pointer text-white opacity-0 hover:opacity-100 transition-opacity">
+                    <Camera size={20} />
+                    <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                   </label>
                 )}
               </div>
 
-              {!isEditing ? (
-                <>
-                  <h2 className="text-xl font-semibold text-foreground mb-1 text-center">
-                    {profileData.display_name}
-                  </h2>
-                  <p className="text-muted-foreground text-sm mb-1 text-center">
-                    @{profileData.user}
-                  </p>
-                  <p className="text-primary text-sm font-medium mb-3 text-center">
-                    {profileData.headline}
-                  </p>
-                  <p className="text-muted-foreground text-sm mb-4 leading-relaxed text-center">
-                    {profileData.bio}
-                  </p>
-                  <Button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    // UPDATED: Using themed button (foreground)
-                    className="w-full bg-foreground hover:bg-foreground/90 text-background rounded-md"
-                  >
+              <div className="text-center space-y-1">
+                <h2 className="text-xl font-bold text-foreground leading-tight">{profileData.display_name}</h2>
+                <p className="text-xs font-bold text-primary uppercase tracking-widest">@{profileData.user}</p>
+                <p className="text-xs text-muted-foreground font-medium pt-2">{profileData.headline}</p>
+              </div>
+
+              <div className="w-full pt-6">
+                {!isEditing ? (
+                  <Button onClick={() => setIsEditing(true)} className="w-full h-10 rounded-md font-bold text-xs uppercase tracking-widest shadow-none">
                     Edit Profile
                   </Button>
-                </>
-              ) : (
-                <div className="text-center">
-                  <p className="text-center text-sm text-muted-foreground">
-                    You are in edit mode
-                  </p>
-                  <p className="text-center text-xs text-muted-foreground/80 mt-1">
-                    Save or cancel your changes in the main content area.
-                  </p>
-                </div>
-              )}
+                ) : (
+                  <Badge variant="outline" className="w-full justify-center py-2 border-primary/20 text-primary bg-primary/5 rounded-md">
+                    Editing Mode
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {!profileData.is_verified && (
-              // UPDATED: Kept warning colors, changed radius
-              <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded-md mt-4 flex items-start gap-3 shadow-sm">
-                <AlertTriangle size={20} className="flex-shrink-0" />
-                <p className="text-sm">Your profile is pending verification.</p>
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-md mt-4 flex items-start gap-3 shadow-none">
+                <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                <p className="text-[11px] font-bold uppercase tracking-tight leading-normal">Verification Pending</p>
               </div>
             )}
           </aside>
 
-          {/* === Right Content Area === */}
-          <main className="flex-1 space-y-8">
-            <form onSubmit={handleSubmit}>
-              {/* --- Section 1: Public Profile --- */}
-              {/* UPDATED: Themed card and radius */}
-              <section className="bg-card border border-border p-6 rounded-md">
-                {/* UPDATED: Responsive header and themed border/text */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border pb-4 mb-6 gap-4">
-                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                    <User size={20} /> Public Profile
+          <main className="flex-1 space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <section className="bg-card border border-border p-6 rounded-md shadow-none relative">
+                <div className="flex justify-between items-center mb-8 border-b border-border pb-4">
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                    <User size={16} className="text-primary" /> Public Identity
                   </h3>
                   {isEditing && (
-                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setIsEditing(false);
-                          if (profileData) {
-                            setFormData({
-                              display_name: profileData.display_name,
-                              headline: profileData.headline,
-                              bio: profileData.bio,
-                              education: profileData.education || "",
-                              subjects: profileData.subjects_list
-                                .map((s: Subject) => s.name)
-                                .join(", "),
-                              profile_image_file: null,
-                              profile_image_preview: profileData.profile_image,
-                              intro_video_file: null,
-                              intro_video_preview:
-                                profileData.intro_video || null,
-                            });
-                          }
-                        }}
-                        className="rounded-md w-full sm:w-auto"
-                      >
-                        Cancel
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)} className="rounded-md h-8 text-xs font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors">
+                        <X size={14} className="mr-1" /> Cancel
                       </Button>
-                      <Button
-                        type="submit"
-                        disabled={submitLoading}
-                        className="rounded-md w-full sm:w-auto"
-                      >
-                        {submitLoading ? "Saving..." : "Save Changes"}
+                      <Button type="submit" disabled={submitLoading} size="sm" className="rounded-md h-8 text-xs font-bold uppercase tracking-widest shadow-none">
+                        {submitLoading ? "..." : <><Save size={14} className="mr-1" /> Save</>}
                       </Button>
                     </div>
                   )}
                 </div>
 
-                {/* Single-column stack for form fields */}
-                <div className="space-y-6">
-                  {/* Display Name */}
-                  <div>
-                    <label
-                      htmlFor="display_name"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Display Name
-                    </label>
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        name="display_name"
-                        id="display_name"
-                        value={formData.display_name}
-                        onChange={handleInputChange}
-                        className="rounded-md"
-                      />
-                    ) : (
-                      <p className="text-foreground pt-2">
-                        {profileData.display_name}
-                      </p>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">Display Name</label>
+                    {isEditing ? <Input name="display_name" value={formData.display_name} onChange={handleInputChange} className="h-10 rounded-md border-border shadow-none" /> : <p className="text-sm font-semibold ml-1">{profileData.display_name}</p>}
                   </div>
-
-                  {/* Headline */}
-                  <div>
-                    <label
-                      htmlFor="headline"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Headline
-                    </label>
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        name="headline"
-                        id="headline"
-                        value={formData.headline}
-                        onChange={handleInputChange}
-                        className="rounded-md"
-                        placeholder="e.g., Senior Python Developer & Mentor"
-                      />
-                    ) : (
-                      <p className="text-foreground pt-2">
-                        {profileData.headline || "Not specified"}
-                      </p>
-                    )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">Headline</label>
+                    {isEditing ? <Input name="headline" value={formData.headline} onChange={handleInputChange} className="h-10 rounded-md border-border shadow-none" /> : <p className="text-sm font-semibold ml-1">{profileData.headline || "None"}</p>}
                   </div>
-
-                  {/* Bio */}
-                  <div>
-                    <label
-                      htmlFor="bio"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      About Me (Bio)
-                    </label>
-                    {isEditing ? (
-                      <Textarea
-                        name="bio"
-                        id="bio"
-                        rows={5}
-                        value={formData.bio}
-                        onChange={handleInputChange}
-                        className="rounded-md"
-                      />
-                    ) : (
-                      <p className="text-foreground pt-2 whitespace-pre-line">
-                        {profileData.bio || "Not specified"}
-                      </p>
-                    )}
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">About Me (Bio)</label>
+                    {isEditing ? <Textarea name="bio" rows={4} value={formData.bio} onChange={handleInputChange} className="rounded-md border-border shadow-none resize-none" /> : <p className="text-sm leading-relaxed ml-1 opacity-80">{profileData.bio || "No bio added yet."}</p>}
                   </div>
-
-                  {/* Education */}
-                  <div>
-                    <label
-                      htmlFor="education"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Education
-                    </label>
-                    {isEditing ? (
-                      <Input
-                        type="text"
-                        name="education"
-                        id="education"
-                        value={formData.education}
-                        onChange={handleInputChange}
-                        className="rounded-md"
-                        placeholder="e.g., B.Sc. Computer Science"
-                      />
-                    ) : (
-                      <p className="text-foreground pt-2">
-                        {profileData.education || "Not specified"}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Intro Video */}
-                  <div>
-                    <label
-                      htmlFor="intro_video"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Intro Video
-                    </label>
-                    {isEditing ? (
-                      <>
-                        <Input
-                          type="file"
-                          name="intro_video"
-                          id="intro_video"
-                          accept="video/mp4,video/webm"
-                          onChange={handleVideoChange}
-                          // UPDATED: Themed file input
-                          className="w-full text-sm text-muted-foreground
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-md file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-primary/10 file:text-primary
-                            file:hover:bg-primary/20"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Upload a .mp4 or .webm file.
-                        </p>
-
-                        {formData.intro_video_preview &&
-                          formData.intro_video_file && (
-                            <div className="mt-2 rounded-md overflow-hidden border border-border bg-black">
-                              <p className="text-sm text-background bg-foreground/80 px-3 py-1">
-                                New Video Preview
-                              </p>
-                              <video
-                                key={formData.intro_video_preview}
-                                controls
-                                playsInline
-                                src={formData.intro_video_preview}
-                                className="w-full h-auto"
-                              />
-                            </div>
-                          )}
-                      </>
-                    ) : (
-                      <>
-                        {formData.intro_video_preview ? (
-                          <div className="mt-2 rounded-md overflow-hidden border border-border bg-black">
-                            <video
-                              key={formData.intro_video_preview}
-                              controls
-                              playsInline
-                              preload="metadata"
-                              className="w-full h-auto"
-                            >
-                              <source
-                                src={formData.intro_video_preview}
-                                type="video/mp4"
-                              />
-                              Your browser does not support the video tag.
-                            </video>
-                          </div>
-                        ) : (
-                          <p className="text-foreground pt-2">Not specified</p>
-                        )}
-                      </>
-                    )}
+                  <div className="md:col-span-2 space-y-1 pt-2">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider ml-1">Education Credentials</label>
+                    {isEditing ? <Input name="education" value={formData.education} onChange={handleInputChange} className="h-10 rounded-md border-border shadow-none" /> : <p className="text-sm font-semibold ml-1">{profileData.education || "Not specified"}</p>}
                   </div>
                 </div>
               </section>
 
-              {/* --- Section 2: Expertise & Subjects --- */}
-              <section className="bg-card border border-border p-6 rounded-md mt-8">
-                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                  <BookOpen size={20} /> Expertise & Subjects
+              <section className="bg-card border border-border p-6 rounded-md shadow-none">
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 flex items-center gap-2">
+                  <BookOpen size={16} className="text-primary" /> Expertise
                 </h3>
                 {isEditing ? (
-                  <div className="form-group">
-                    <label
-                      htmlFor="subjects"
-                      className="block text-sm font-medium text-foreground mb-1"
-                    >
-                      Subjects
-                    </label>
-                    <Input
-                      type="text"
-                      name="subjects"
-                      id="subjects"
-                      value={formData.subjects}
-                      onChange={handleInputChange}
-                      className="rounded-md"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Enter subjects separated by a comma (e.g., React, Python,
-                      Django)
-                    </p>
+                  <div className="space-y-1">
+                    <Input name="subjects" value={formData.subjects} onChange={handleInputChange} className="h-10 rounded-md border-border shadow-none" />
+                    <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest mt-2 ml-1">Comma separated (e.g. Physics, Math, SEO)</p>
                   </div>
-                ) : profileData.subjects_list.length > 0 ? (
+                ) : (
                   <div className="flex flex-wrap gap-2">
-                    {profileData.subjects_list.map((subject) => (
-                      // UPDATED: Uses theme secondary (Teal)
-                      <span
-                        key={subject.slug}
-                        className="bg-secondary/20 text-secondary-foreground text-xs font-medium px-2.5 py-0.5 rounded-full"
-                      >
-                        {subject.name}
+                    {profileData.subjects_list.map((s) => (
+                      <span key={s.slug} className="bg-primary/10 text-primary text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">
+                        {s.name}
                       </span>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    You have not added any subjects yet.
-                  </p>
                 )}
               </section>
-            </form>{" "}
-            {/* End of the one big form */}
-            {/* --- Section 3: Affiliations (Not part of the form) --- */}
-            <section className="bg-card border border-border p-6 rounded-md">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Building size={20} /> Affiliations
+            </form>
+
+            <section className="bg-card border border-border p-6 rounded-md shadow-none">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 flex items-center gap-2">
+                <Building size={16} className="text-primary" /> Affiliations
               </h3>
-              {profileData.memberships.length > 0 ? (
-                <ul className="space-y-3">
-                  {profileData.memberships.map((membership) => (
-                    <li
-                      key={membership.id}
-                      className="flex justify-between items-center border-b border-border pb-2 last:border-b-0"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {membership.organization_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {membership.role}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  You are not a member of any organization.
-                </p>
-              )}
+              <div className="space-y-3">
+                {profileData.memberships.map((m) => (
+                  <div key={m.id} className="flex justify-between items-center border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                    <span className="text-sm font-bold">{m.organization_name}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2 py-0.5 rounded">{m.role}</span>
+                  </div>
+                ))}
+              </div>
             </section>
-            {/* --- Section 4: NEW REQUESTS & INVITATIONS --- */}
-            <section className="bg-card border border-border p-6 rounded-md">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Mail size={20} /> Requests & Invitations
+
+            <section className="bg-card border border-border p-6 rounded-md shadow-none">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 flex items-center gap-2">
+                <Mail size={16} className="text-primary" /> Invitations
               </h3>
               <RequestsInvitationsList />
             </section>
-            {/* --- Section 5: Account Settings (Not part of the form) --- */}
-            <section className="bg-card border border-border p-6 rounded-md">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <LifeBuoy size={20} /> Account Settings
+
+            <section className="bg-card border border-border p-6 rounded-md shadow-none">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground mb-8 flex items-center gap-2">
+                <LifeBuoy size={16} className="text-primary" /> Security
               </h3>
-              <div className="space-y-4">
-                {/* Change Password */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-border gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    Update your password for better security.
-                  </p>
-                  <Button
-                    onClick={() => setIsModalOpen(true)}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-md flex-shrink-0 w-full sm:w-auto"
-                  >
-                    <ShieldAlert size={14} className="mr-1.5" /> Change Password
+              <div className="divide-y divide-border/50">
+                <div className="flex items-center justify-between py-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-bold">Change Password</p>
+                    <p className="text-xs text-muted-foreground">Keep your account secure.</p>
+                  </div>
+                  <Button onClick={() => setIsModalOpen(true)} variant="outline" size="sm" className="rounded-md font-bold text-[10px] uppercase shadow-none">
+                    <ShieldAlert size={14} className="mr-2" /> Update
                   </Button>
                 </div>
 
-                {/* Sign Out */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 border-b border-border gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    Sign out safely from this device.
-                  </p>
-                  <Button
-                    onClick={handleSignOut}
-                    disabled={signOutLoading}
-                    variant="outline" // Using outline, but with warning colors
-                    size="sm"
-                    className="rounded-md flex-shrink-0 w-full sm:w-auto bg-yellow-100 hover:bg-yellow-200 text-yellow-900 border-yellow-200"
-                  >
-                    <LogOut size={14} className="mr-1.5" />{" "}
-                    {signOutLoading ? "Signing Out..." : "Sign Out"}
+                <div className="flex items-center justify-between py-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-bold">Session Control</p>
+                    <p className="text-xs text-muted-foreground">Sign out of this session.</p>
+                  </div>
+                  <Button onClick={() => logout()} variant="outline" size="sm" className="rounded-md font-bold text-[10px] uppercase shadow-none border-amber-200 text-amber-700 hover:bg-amber-50">
+                    <LogOut size={14} className="mr-2" /> Exit
                   </Button>
                 </div>
 
-                {/* Delete Account */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    Permanently remove your account and all data.
-                  </p>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="rounded-md flex-shrink-0 w-full sm:w-auto bg-destructive/10 hover:bg-destructive/20 text-destructive"
+                <div className="flex items-center justify-between py-4">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-bold text-red-600">Danger Zone</p>
+                    <p className="text-xs text-muted-foreground">Deactivate your profile.</p>
+                    <div className="pt-1">
+                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-600 border border-amber-100 uppercase tracking-tight">
+                          Under Development
+                        </span>
+                    </div>
+                  </div>
+                  <Button 
+                    disabled 
+                    variant="outline" 
+                    size="sm" 
+                    className="rounded-md font-bold text-[10px] uppercase shadow-none border-red-100 text-red-400 cursor-not-allowed opacity-60"
                   >
-                    <Trash2 size={14} className="mr-1.5" /> Delete Account
+                    <Trash2 size={14} className="mr-2" /> Delete
                   </Button>
                 </div>
               </div>
@@ -726,10 +480,16 @@ export default function TutorProfilePage() {
         </div>
       </div>
 
-      {/* Modal */}
-      <ChangePasswordModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+      <ChangePasswordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      
+      <ConfirmDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => {
+           setIsDeleteModalOpen(false);
+        }}
+        title="Delete Account"
+        description="Permanently remove your account and all associated data from the Evuka Ecosystem."
       />
     </div>
   );

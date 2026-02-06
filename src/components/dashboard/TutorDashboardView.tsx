@@ -14,7 +14,7 @@ import {
   UserPlus,
   Video,
   TrendingUp,
-  ArrowLeft,
+  Send,
   Calendar,
   Inbox,
   Users,
@@ -24,7 +24,9 @@ import {
   Star,
   ExternalLink,
   Users2,
-  Percent
+  Percent,
+  Wallet,
+  Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,13 +53,24 @@ import { format } from "date-fns";
 
 import RequestsInvitationsList from "./RequestsInvitationsList";
 
+
+const labelStyles = "text-[10px] md:text-xs uppercase font-bold text-muted-foreground tracking-wider ml-1";
+const inputStyles = "h-12 px-4 rounded-md border-border bg-background transition-colors hover:border-primary focus-visible:ring-0 focus-visible:border-primary shadow-none outline-none w-full text-base";
+  
+
 interface DashboardData {
   metrics: {
     total_courses: number;
     active_students: number;
-    total_revenue: number;
+    net_lifetime_revenue: number;
+    available_balance: number;
     upcoming_events: number;
     active_tutors: number;
+    revenue_breakdown: {
+      courses: number;
+      events: number;
+      subscriptions: number;
+    };
   };
   upcoming_classes: Array<{
     id: string;
@@ -86,12 +99,18 @@ interface DashboardData {
     revenue: number;
     rating_avg: number;
   }>;
+  best_performing_events?: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    banner_image: string | null;
+    attendee_count: number;
+    revenue: number;
+  }>;
 }
 
-const inputStyles = "h-12 px-4 rounded-md border-border bg-background transition-colors hover:border-secondary focus-visible:ring-0 focus-visible:border-secondary shadow-none outline-none w-full text-base";
-
-const KPICard = ({ title, value, icon: Icon, color }: any) => (
-  <div className="rounded-md border border-border bg-card p-4 md:p-5 flex flex-col justify-between space-y-4 shadow-none h-full transition-colors hover:border-muted-foreground/30">
+const KPICard = ({ title, value, icon: Icon, color, breakdown }: any) => (
+  <div className="relative group rounded-md border border-border bg-card p-4 md:p-5 flex flex-col justify-between space-y-4 shadow-none h-full transition-colors hover:border-muted-foreground/30">
     <div className="flex items-center justify-between">
       <p className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{title}</p>
       <div className={cn("p-1.5 rounded-md", color)}>
@@ -99,6 +118,26 @@ const KPICard = ({ title, value, icon: Icon, color }: any) => (
       </div>
     </div>
     <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">{value}</h2>
+    
+    {breakdown && (
+      <div className="absolute bottom-full left-0 mb-2 w-48 bg-popover border border-border rounded-md shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+         <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 border-b pb-1">Revenue Stream</p>
+         <div className="space-y-2">
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-muted-foreground">Courses</span>
+              <span className="text-foreground">{new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(breakdown.courses)}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-muted-foreground">Events</span>
+              <span className="text-foreground">{new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(breakdown.events)}</span>
+            </div>
+            <div className="flex justify-between items-center text-[10px] font-bold">
+              <span className="text-muted-foreground">Subs</span>
+              <span className="text-foreground">{new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(breakdown.subscriptions)}</span>
+            </div>
+         </div>
+      </div>
+    )}
   </div>
 );
 
@@ -115,8 +154,8 @@ const DashboardSkeleton = () => (
           <Skeleton width={100} height={36} className="flex-1 md:flex-none" />
         </div>
       </div>
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => <Skeleton key={i} height={100} borderRadius={8} />)}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={100} borderRadius={8} />)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Skeleton height={300} borderRadius={8} />
@@ -134,7 +173,7 @@ export default function TutorDashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  
+
   const [isTutorInvite, setIsTutorInvite] = useState(true);
   const [commission, setCommission] = useState("70");
 
@@ -224,11 +263,12 @@ export default function TutorDashboardClient() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-        <KPICard title="Revenue" value={formatCurrency(data?.metrics.total_revenue || 0)} icon={DollarSign} color="bg-emerald-50 text-emerald-600" />
-        <KPICard title="Students" value={data?.metrics.active_students || 0} icon={Users} color="bg-blue-50 text-blue-600" />
-        <KPICard title="Classes" value={data?.upcoming_classes.length || 0} icon={Video} color="bg-amber-50 text-amber-600" />
-        <KPICard title="Events" value={data?.metrics.upcoming_events || 0} icon={Calendar} color="bg-purple-50 text-purple-600" />
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+        <KPICard title="Balance" value={formatCurrency(data?.metrics?.available_balance || 0)} icon={Wallet} color="bg-indigo-50 text-indigo-600" />
+        <KPICard title="Net Revenue" value={formatCurrency(data?.metrics?.net_lifetime_revenue || 0)} icon={DollarSign} color="bg-emerald-50 text-emerald-600" breakdown={data?.metrics?.revenue_breakdown} />
+        <KPICard title="Students" value={data?.metrics?.active_students || 0} icon={Users} color="bg-blue-50 text-blue-600" />
+        <KPICard title="Classes" value={data?.upcoming_classes?.length || 0} icon={Video} color="bg-amber-50 text-amber-600" />
+        <KPICard title="Events" value={data?.metrics?.upcoming_events || 0} icon={Calendar} color="bg-purple-50 text-purple-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-10">
@@ -242,7 +282,7 @@ export default function TutorDashboardClient() {
             </Button>
           </div>
           <div className="rounded-md border border-border bg-card shadow-none overflow-hidden divide-y divide-border">
-            {data?.upcoming_classes.filter(c => !getJoinStatus(c.date, c.start_time, c.end_datetime).isExpired).length ? (
+            {data?.upcoming_classes?.filter(c => !getJoinStatus(c.date, c.start_time, c.end_datetime).isExpired).length ? (
               data.upcoming_classes.map((cls) => {
                 const { canJoin, isExpired } = getJoinStatus(cls.date, cls.start_time, cls.end_datetime);
                 if (isExpired) return null;
@@ -284,7 +324,7 @@ export default function TutorDashboardClient() {
             </Button>
           </div>
           <div className="rounded-md border border-border bg-card shadow-none overflow-hidden divide-y divide-border">
-            {data?.upcoming_events.length ? (
+            {data?.upcoming_events?.length ? (
               data.upcoming_events.map((ev) => (
                 <Link key={ev.id} href={activeSlug ? `/${activeSlug}/events/${ev.slug}` : `/events/${ev.slug}`} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors group">
                   <div className="h-10 w-10 md:h-12 md:w-12 bg-muted rounded flex-shrink-0 overflow-hidden border border-border bg-background">
@@ -318,14 +358,13 @@ export default function TutorDashboardClient() {
         <RequestsInvitationsList />
       </section>
 
-      <section className="space-y-6">
-        <div className="flex items-center gap-2 px-1">
-          <TrendingUp className="h-4 w-4 text-primary" />
-          <h3 className="font-bold text-[10px] md:text-xs uppercase tracking-[0.2em] text-muted-foreground">Performance Leaders</h3>
-        </div>
-        
-        <div className="hidden md:block rounded-md border border-border bg-card shadow-none overflow-hidden">
-          <div className="overflow-x-auto">
+      <section className="space-y-12">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 px-1">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <h3 className="font-bold text-[10px] md:text-xs uppercase tracking-[0.2em] text-muted-foreground">Top Courses</h3>
+          </div>
+          <div className="hidden md:block rounded-md border border-border bg-card shadow-none overflow-hidden">
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b bg-muted/20">
@@ -335,7 +374,7 @@ export default function TutorDashboardClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data?.best_performing_courses.length ? data.best_performing_courses.map((course) => (
+                {data?.best_performing_courses?.length ? data.best_performing_courses.map((course) => (
                   <tr key={course.id} className="hover:bg-muted/10 transition-colors group">
                     <td className="px-6 py-4">
                       <Link href={activeSlug ? `/${activeSlug}/courses/${course.slug}` : `/courses/${course.slug}`} className="flex items-center gap-3">
@@ -355,7 +394,7 @@ export default function TutorDashboardClient() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={3} className="py-20 text-center text-muted-foreground text-[10px] font-bold uppercase tracking-widest opacity-50">No data yet</td>
+                    <td colSpan={3} className="py-20 text-center text-muted-foreground text-[10px] font-bold uppercase tracking-widest opacity-50">No activity yet</td>
                   </tr>
                 )}
               </tbody>
@@ -363,118 +402,150 @@ export default function TutorDashboardClient() {
           </div>
         </div>
 
-        <div className="block md:hidden space-y-4">
-            {data?.best_performing_courses.length ? data.best_performing_courses.map((course) => (
-                <div key={course.id} className="border border-border bg-card rounded-md overflow-hidden flex flex-col">
-                    <div className="p-4 flex items-center gap-3 border-b border-border bg-muted/10">
-                        <div className="h-10 w-10 bg-background rounded border border-border shrink-0 overflow-hidden">
-                            {course.thumbnail && <img src={course.thumbnail} className="w-full h-full object-cover" />}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 px-1">
+            <Calendar className="h-4 w-4 text-primary" />
+            <h3 className="font-bold text-[10px] md:text-xs uppercase tracking-[0.2em] text-muted-foreground">Top Events</h3>
+          </div>
+          <div className="hidden md:block rounded-md border border-border bg-card shadow-none overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b bg-muted/20">
+                  <th className="px-6 py-4 text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground">Event</th>
+                  <th className="px-6 py-4 text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground text-center">Attendees</th>
+                  <th className="px-6 py-4 text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data?.best_performing_events?.length ? data.best_performing_events.map((ev) => (
+                  <tr key={ev.id} className="hover:bg-muted/10 transition-colors group">
+                    <td className="px-6 py-4">
+                      <Link href={activeSlug ? `/${activeSlug}/events/${ev.slug}` : `/events/${ev.slug}`} className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-muted rounded overflow-hidden border border-border flex-shrink-0">
+                          {ev.banner_image && <img src={ev.banner_image} className="w-full h-full object-cover" />}
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <h4 className="font-bold text-[13px] truncate text-foreground">{course.title}</h4>
-                            <div className="flex items-center gap-1 text-amber-500 text-[9px] font-black">
-                                <Star size={10} className="fill-amber-500" /> {course.rating_avg.toFixed(1)}
-                            </div>
-                        </div>
-                        <Link href={activeSlug ? `/${activeSlug}/courses/${course.slug}` : `/courses/${course.slug}`} className="p-2 hover:bg-muted rounded-md text-muted-foreground">
-                            <ExternalLink size={14} />
-                        </Link>
-                    </div>
-                    <div className="grid grid-cols-2 divide-x divide-border">
-                        <div className="p-3 text-center">
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Students</p>
-                            <p className="text-sm font-black text-foreground">{course.student_count}</p>
-                        </div>
-                        <div className="p-3 text-center">
-                            <p className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Revenue</p>
-                            <p className="text-sm font-black text-emerald-600">{formatCurrency(course.revenue)}</p>
-                        </div>
-                    </div>
-                </div>
-            )) : (
-                <div className="p-10 border border-dashed rounded-md text-center opacity-40">
-                    <p className="text-[10px] font-bold uppercase tracking-widest">No activity available</p>
-                </div>
-            )}
+                        <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{ev.title}</p>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 text-center text-sm font-bold text-foreground/80">{ev.attendee_count}</td>
+                    <td className="px-6 py-4 text-right text-sm font-black text-emerald-600">{formatCurrency(ev.revenue)}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={3} className="py-20 text-center text-muted-foreground text-[10px] font-bold uppercase tracking-widest opacity-50">No event activity yet</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent className="w-[95%] sm:max-w-[500px] p-0 gap-0 border-border/80 rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[5%] md:top-[10%] translate-y-0 shadow-none">
-          <DialogHeader className="px-4 md:px-6 py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 md:h-9 md:w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
-                <UserPlus className="h-4 w-4 text-primary" />
-              </div>
-              <DialogTitle className="text-base md:text-lg font-bold tracking-tight text-foreground">
-                Invite Team Member
-              </DialogTitle>
-            </div>
-            <DialogClose className="rounded-md p-2 hover:bg-muted transition -mr-2">
+        <DialogContent className="w-[95%] sm:max-w-[480px] lg:max-w-[600px] p-0 gap-0 max-h-[90vh] md:max-h-[85vh] h-auto flex flex-col border-border/80 shadow-2xl rounded-md bg-background overflow-hidden [&>button]:hidden transition-all duration-300 top-[5%] md:top-[10%] translate-y-0">
+          
+          <DialogHeader className="px-4 py-3 md:py-4 border-b bg-muted/50 flex flex-row items-center justify-between shrink-0 backdrop-blur-sm z-10">
+            <DialogTitle className="text-base md:text-lg font-bold tracking-tight text-foreground flex items-center gap-2 uppercase">
+              <UserPlus className="w-5 h-5 text-primary" />
+              Invite Team Member
+            </DialogTitle>
+            <DialogClose className="rounded-md p-2 hover:bg-muted transition">
               <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
             </DialogClose>
           </DialogHeader>
 
-          <form onSubmit={handleInviteSubmit} className="flex flex-col min-h-0">
-            <div className="p-4 md:p-6 space-y-6">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground ml-1">Email Address</Label>
-                <Input name="email" type="email" placeholder="tutor@example.com" required className={inputStyles} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground ml-1">Assigned Governance Role</Label>
-                <Select name="gov_role" defaultValue="member">
-                  <SelectTrigger className={inputStyles}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-md border-border shadow-none">
-                    <SelectItem value="member" className="text-sm font-bold py-3">Member (Standard Access)</SelectItem>
-                    <SelectItem value="admin" className="text-sm font-bold py-3">Admin (Management)</SelectItem>
-                    <SelectItem value="owner" className="text-sm font-bold py-3">Owner (Full Control)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <form id="invite-member-form" onSubmit={handleInviteSubmit} className="h-full flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 md:py-8 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:border-x-[1px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content">
+                
+                <div className="space-y-1">
+                  <Label className={labelStyles}>Email Address</Label>
+                  <Input 
+                    name="email" 
+                    type="email" 
+                    placeholder="tutor@example.com" 
+                    required 
+                    className={inputStyles} 
+                  />
+                </div>
 
-              <div className="pt-2">
+                <div className="space-y-1">
+                  <Label className={labelStyles}>Assigned Governance Role</Label>
+                  <Select name="gov_role" defaultValue="tutor">
+                    <SelectTrigger className={inputStyles}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border-border shadow-xl">
+                      <SelectItem value="tutor" className="text-sm font-bold py-3">Tutor (Staff Member)</SelectItem>
+                      <SelectItem value="admin" className="text-sm font-bold py-3">Admin (Management Staff)</SelectItem>
+                      <SelectItem value="owner" className="text-sm font-bold py-3">Owner (Full Control)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground font-medium italic mt-1 ml-1">
+                    Note: Students join via subscription and do not require manual invitations.
+                  </p>
+                </div>
+
+                <div className="pt-2">
                   <div className="flex items-center justify-between p-4 bg-muted/20 border border-border rounded-md">
-                      <div className="space-y-0.5">
-                          <Label className="text-[10px] font-black uppercase tracking-widest">Teaching Offer</Label>
-                          <p className="text-[10px] text-muted-foreground font-medium">Include a revenue share agreement</p>
-                      </div>
-                      <Switch checked={isTutorInvite} onCheckedChange={setIsTutorInvite} />
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] font-black uppercase tracking-widest">Teaching Offer</Label>
+                      <p className="text-[10px] text-muted-foreground font-medium">Include a revenue share agreement</p>
+                    </div>
+                    <Switch checked={isTutorInvite} onCheckedChange={setIsTutorInvite} />
                   </div>
                   
                   {isTutorInvite && (
-                      <div className="mt-4 p-4 border border-dashed border-primary/30 bg-primary/5 rounded-md space-y-4 animate-in fade-in duration-200">
-                          <div className="space-y-1.5">
-                              <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
-                                  <Percent size={12} /> Proposed Commission Share
-                              </Label>
-                              <div className="flex items-center gap-4">
-                                  <Input 
-                                      type="number" min="10" max="100" 
-                                      value={commission} 
-                                      onChange={(e) => setCommission(e.target.value)}
-                                      className="w-24 h-10 text-lg font-mono rounded-md border-primary/20 focus-visible:ring-primary"
-                                  />
-                                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Share to retain (%)</span>
-                              </div>
-                              <p className="text-[9px] text-muted-foreground/60 italic leading-tight mt-1">Minimum allowable commission for tutors in this organization is 10%.</p>
+                    <div className="mt-4 p-5 border border-dashed border-primary/20 bg-primary/[0.02] rounded-md space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="space-y-1">
+                        <Label className={`${labelStyles} text-primary flex items-center gap-1`}>
+                          <Percent size={12} /> Proposed Commission Share
+                        </Label>
+                        <div className="flex items-center gap-4">
+                          <div className="relative">
+                            <Input 
+                              type="number" 
+                              min="10" 
+                              max="100" 
+                              value={commission} 
+                              onChange={(e) => setCommission(e.target.value)}
+                              className="w-28 h-12 text-lg font-mono font-black rounded-md border-border bg-background focus-visible:border-primary pr-8"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                           </div>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">
+                            Percentage of revenue <br /> the tutor retains
+                          </span>
+                        </div>
+                        <p className="text-[9px] text-muted-foreground/60 italic leading-tight mt-1">
+                          Minimum allowable commission for this organization is 10%.
+                        </p>
                       </div>
+                    </div>
                   )}
+                </div>
               </div>
-            </div>
-            
-            <div className="px-4 md:px-6 py-4 border-t bg-muted/20 flex flex-col-reverse sm:flex-row justify-end gap-3 mt-auto">
-              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)} className="h-11 md:h-10 w-full sm:w-auto px-6 rounded-md font-bold text-[11px] md:text-xs uppercase tracking-widest border-border shadow-none bg-background">
-                Cancel
-              </Button>
-              <Button type="submit" className="h-11 md:h-10 w-full sm:w-auto px-6 rounded-md font-black text-[11px] md:text-xs uppercase tracking-widest shadow-none bg-primary text-primary-foreground hover:bg-primary/90">
-                Send Invitation
-              </Button>
-            </div>
-          </form>
+            </form>
+          </div>
+
+          <div className="px-4 md:px-6 py-3 md:py-4 border-t bg-background shrink-0 mt-auto flex flex-col-reverse sm:flex-row justify-end gap-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsInviteOpen(false)} 
+              className="h-12 w-full sm:w-auto px-8 rounded-md font-bold text-[10px] uppercase tracking-widest border-border bg-background shadow-none"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              form="invite-member-form"
+              className="h-12 w-full sm:w-auto px-8 rounded-md font-black text-[10px] uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-none text-white"
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Send Invitation
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

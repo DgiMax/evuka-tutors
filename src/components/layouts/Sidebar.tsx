@@ -47,7 +47,7 @@ const navGroups = [
     title: "Operations",
     items: [
       { href: "/events", label: "Events", icon: Calendar },
-      { href: "/organizations", label: "Organizations", icon: Building2 }, // Always visible
+      { href: "/organizations", label: "Organizations", icon: Building2 },
       { href: "/revenue", label: "Revenue & Payouts", icon: Wallet },
       { href: "/announcements", label: "Announcements", icon: Megaphone },
       { href: "/org-info", label: "Org Info", icon: Building, orgOnly: true },
@@ -82,8 +82,9 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
     ? `/${activeSlug}${href === "/" ? "" : href}` 
     : href;
 
-  const isActive = pathname === computedHref || 
-    (computedHref !== "/" && pathname.startsWith(`${computedHref}/`));
+  const isActive = href === "/" 
+    ? pathname === computedHref 
+    : pathname === computedHref || pathname.startsWith(`${computedHref}/`);
 
   return (
     <Link
@@ -91,7 +92,7 @@ const NavLink = ({ href, label, icon: Icon, onClick }: NavLinkProps) => {
       onClick={onClick}
       className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
         isActive
-          ? "bg-primary text-primary-foreground font-medium shadow-sm"
+          ? "bg-primary text-primary-foreground font-medium shadow-none"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
@@ -152,10 +153,9 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed top-14 bottom-0 left-0 z-40 flex flex-col bg-background border-r border-border shadow-sm w-72 md:w-64"
+            className="fixed top-14 bottom-0 left-0 z-40 flex flex-col bg-background border-r border-border shadow-none w-72 md:w-64"
           >
             <div className="flex-1 overflow-y-auto px-3 py-6 space-y-6 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-muted-foreground/20 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:border-x-[1px] [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-content">
-              
               {isDataLoading ? (
                 <div className="space-y-6 px-1">
                   {[1, 2, 3].map((i) => (
@@ -180,7 +180,7 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
 
                   return (
                     <div key={group.title}>
-                      <h3 className="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-muted-foreground/60">
+                      <h3 className="mb-2 px-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
                         {group.title}
                       </h3>
                       <div className="space-y-1">
@@ -198,7 +198,7 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
               )}
             </div>
 
-            <div className="border-t border-border bg-muted/20 p-3">
+            <div className="border-t border-border bg-muted/10 p-3">
               <div className="space-y-1 mb-4">
                 {isDataLoading ? (
                   <Skeleton height={36} count={2} borderRadius={6} />
@@ -225,15 +225,15 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
                 ) : (
                   <>
                     <div className="flex items-center gap-3 overflow-hidden px-1">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-border">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary border border-primary/20">
                             <UserCircle className="h-5 w-5" />
                         </div>
                         <div className="flex flex-col truncate">
-                            <span className="text-sm font-semibold text-foreground truncate">
-                                {activeSlug ? "Org Account" : "My Account"}
+                            <span className="text-xs font-bold text-foreground truncate">
+                                {activeSlug ? "Org View" : "Personal"}
                             </span>
-                            <span className="text-xs text-muted-foreground truncate">
-                                {activeSlug ? activeSlug : "Manage settings"}
+                            <span className="text-[10px] text-muted-foreground truncate uppercase font-medium">
+                                {activeSlug ? activeSlug : "Private"}
                             </span>
                         </div>
                     </div>
@@ -241,7 +241,7 @@ export function SidebarNav({ isSidebarOpen, setIsSidebarOpen }: SidebarNavProps)
                     <button
                       onClick={handleSignOut}
                       disabled={signOutLoading}
-                      className="group rounded-md p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      className="group rounded-md p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
                       title="Sign out"
                     >
                       {signOutLoading ? (

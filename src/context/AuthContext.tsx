@@ -11,7 +11,6 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import api from "@/lib/api/axios";
 
-// 1. AXIOS TYPE DECLARATION
 declare module "axios" {
   export interface AxiosRequestConfig {
     _skipAuthRefresh?: boolean;
@@ -19,12 +18,13 @@ declare module "axios" {
   }
 }
 
-/* TYPES -------------------------------------------------------------- */
-
 interface Organization {
   organization_name: string;
   organization_slug: string;
+  organization_status: string;
+  is_published: boolean;
   role?: string;
+  is_active?: boolean;
 }
 
 interface User {
@@ -34,6 +34,7 @@ interface User {
   is_verified: boolean;
   is_tutor?: boolean;
   is_student?: boolean;
+  is_publisher?: boolean;
   organizations?: Organization[];
 }
 
@@ -42,16 +43,14 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
-  forgotPassword: (email: string) => Promise<void>;
+  register: (username: string, email: string, password: string, origin?: string) => Promise<void>;
+  forgotPassword: (email: string, origin?: string) => Promise<void>;
   resetPassword: (token: string, password: string) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
-  resendVerification: (email: string) => Promise<void>;
+  resendVerification: (email: string, origin?: string) => Promise<void>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   fetchCurrentUser: (skipRefresh?: boolean) => Promise<User | null>;
 }
-
-/* CONTEXT -------------------------------------------------------------- */
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -61,7 +60,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* TOKEN AUTO-REFRESH LOGIC ----------------------------------- */
   useEffect(() => {
     const interceptor = api.interceptors.response.use(
       (response) => response,
@@ -81,10 +79,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             await api.post("/users/refresh/", null, { _skipAuthRefresh: true });
             return api(originalRequest);
           } catch (refreshError) {
-            // Force logout on refresh fail
             setUser(null);
-            localStorage.removeItem("activeOrgSlug"); // <--- SAFETY CLEAR
-            localStorage.removeItem("activeOrgRole"); // <--- SAFETY CLEAR
+            localStorage.removeItem("activeOrgSlug"); 
+            localStorage.removeItem("activeOrgRole");
             return Promise.reject(refreshError);
           }
         }
@@ -94,7 +91,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => api.interceptors.response.eject(interceptor);
   }, []);
 
-  /* FETCH CURRENT USER ------------------------------------------------ */
   const fetchCurrentUser = useCallback(async (skipRefresh = false) => {
     try {
       const response = await api.get<User>("/users/me/");
@@ -105,7 +101,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  /* INITIAL LOAD ------------------------------------------------------- */
   useEffect(() => {
     const init = async () => {
       const userData = await fetchCurrentUser();
@@ -117,7 +112,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, [fetchCurrentUser]);
 
-  /* 🛡️ TUTOR-SIDE REDIRECT LOGIC --------------------------------------- */
   useEffect(() => {
     if (loading) return; 
 
@@ -130,7 +124,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     ];
     const isPublicRoute = publicRoutes.some(r => path === r || path.startsWith(`${r}/`));
 
-    // 1. Guest User Logic
     if (!user) {
       if (!isPublicRoute && !isOnboardingRoute) { 
         sessionStorage.setItem("postLoginRedirect", path);
@@ -139,7 +132,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // 2. Authenticated But NOT A Tutor -> Force Onboarding
     if (!user.is_tutor) {
       if (!isOnboardingRoute) {
         router.replace("/onboarding");
@@ -147,7 +139,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // 3. Authenticated AND Is Tutor -> Block Public/Onboarding
     if (user.is_tutor) {
       if (isPublicRoute || isOnboardingRoute) {
         router.replace("/");
@@ -156,12 +147,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   }, [user, loading, pathname, router]);
 
-  /* AUTH FUNCTIONS ---------------------------------------------------- */
   const login = async (username: string, password: string) => {
     await api.post("/users/login/", { username, password });
     const userData = await fetchCurrentUser();
     
-    // Safety check: Ensure no stale org context from previous session
     localStorage.removeItem("activeOrgSlug");
     localStorage.removeItem("activeOrgRole");
 
@@ -182,22 +171,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = async () => {
     try { await api.post("/users/logout/"); } catch {}
     
-    // --- CRITICAL FIX: Clear Active Context on Logout ---
     localStorage.removeItem("activeOrgSlug");
     localStorage.removeItem("activeOrgRole");
-    // ----------------------------------------------------
-
+    
     setUser(null);
     router.push("/login");
   };
 
-  const register = async (username: string, email: string, password: string) => {
-    await api.post("/users/register/", { username, email, password });
+  const register = async (username: string, email: string, password: string, origin?: string) => {
+    const data = { username, email, password, origin: origin || window.location.origin };
+    await api.post("/users/register/", data);
     router.push("/check-email");
   };
 
-  const forgotPassword = async (email: string) => {
-    await api.post("/users/forgot-password/", { email });
+  const forgotPassword = async (email: string, origin?: string) => {
+    const data = { email, origin: origin || window.location.origin };
+    await api.post("/users/forgot-password/", data);
   };
 
   const resetPassword = async (token: string, password: string) => {
@@ -208,8 +197,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await api.post("/users/verify-email/", { token });
   };
 
-  const resendVerification = async (email: string) => {
-    await api.post("/users/resend-verification/", { email });
+  const resendVerification = async (email: string, origin?: string) => {
+    const data = { email, origin: origin || window.location.origin };
+    await api.post("/users/resend-verification/", data);
   };
 
   const changePassword = async (oldPassword: string, newPassword: string) => {

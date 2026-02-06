@@ -14,7 +14,7 @@ import {
   Pencil,
   MoreVertical,
   View,
-  CalendarCheck2,
+  CalendarCheck2, PlayCircle,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -105,6 +105,21 @@ export default function TutorCourseCard({ course, makeContextLink }: Props) {
                   <Link href={makeContextLink(`/courses/${course.slug}/preview`)} className="flex items-center w-full">
                     <View className="h-3.5 w-3.5 mr-2" /> View
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  asChild={isPublished} 
+                  disabled={!isPublished}
+                  className={!isPublished ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  {isPublished ? (
+                    <Link href={makeContextLink(`/courses/${course.slug}/preview-learning`)} className="flex items-center w-full">
+                      <PlayCircle className="h-3.5 w-3.5 mr-2 text-[#2694C6]" /> Preview Learning
+                    </Link>
+                  ) : (
+                    <div className="flex items-center w-full">
+                      <PlayCircle className="h-3.5 w-3.5 mr-2" /> Preview Learning
+                    </div>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={makeContextLink(`/courses/${course.slug}/edit`)} className="flex items-center w-full">

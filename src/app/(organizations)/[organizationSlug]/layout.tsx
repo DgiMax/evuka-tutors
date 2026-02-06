@@ -1,5 +1,7 @@
 import GlobalUILayout from "@/components/layouts/GlobalUILayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ContextGate from "@/context/ContextGate";
+
 
 interface OrganizationLayoutProps {
   children: React.ReactNode;
@@ -14,9 +16,11 @@ export default async function OrganizationLayout({
 
   return (
     <ProtectedRoute>
-      <GlobalUILayout slug={organizationSlug}>
-        {children}
-      </GlobalUILayout>
+      <ContextGate slug={organizationSlug}>
+        <GlobalUILayout slug={organizationSlug}>
+          {children}
+        </GlobalUILayout>
+      </ContextGate>
     </ProtectedRoute>
   );
 }

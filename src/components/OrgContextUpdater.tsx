@@ -2,32 +2,28 @@
 
 import { useEffect } from "react";
 import { useActiveOrg } from "@/lib/hooks/useActiveOrg";
-import { useAuth } from "@/context/AuthContext";
 
 interface OrgContextUpdaterProps {
   slug: string | null;
 }
 
-const RESERVED_SLUGS = ["organizations", "profile", "discover", "onboarding", "settings"];
+const RESERVED_SLUGS = ["organizations", "profile", "discover", "onboarding", "settings", "dashboard"];
 
 export default function OrgContextUpdater({ slug }: OrgContextUpdaterProps) {
-  const { activeSlug, setActiveSlug, setActiveRole } = useActiveOrg();
-  const { user } = useAuth();
+  const { activeSlug, setActiveSlug, setActiveRole, setIsVerifying } = useActiveOrg();
 
   useEffect(() => {
-    const validatedSlug = RESERVED_SLUGS.includes(slug || "") ? null : slug;
+    const isReserved = RESERVED_SLUGS.includes(slug || "");
+    const validatedSlug = isReserved ? null : slug;
 
-    if (activeSlug !== validatedSlug) {
-      setActiveSlug(validatedSlug);
-
-      if (!validatedSlug) {
+    if (!validatedSlug) {
+      if (activeSlug !== null) {
+        setActiveSlug(null);
         setActiveRole(null);
-      } else if (user?.organizations) {
-        const org = user.organizations.find((o) => o.organization_slug === validatedSlug);
-        setActiveRole(org?.role || "student");
+        setIsVerifying(false);
       }
     }
-  }, [slug, activeSlug, setActiveSlug, setActiveRole, user]);
+  }, [slug, activeSlug, setActiveSlug, setActiveRole, setIsVerifying]);
 
   return null;
 }

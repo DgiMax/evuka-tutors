@@ -1,6 +1,6 @@
 import ManageLessonsPage from "@/components/live/ManageLessonsPage";
 
 
-export default function TutorLiveClassCreatePage() {
+export default function GlobalTutorLiveClassManager() {
   return <ManageLessonsPage />;
 }

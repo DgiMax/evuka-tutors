@@ -351,6 +351,10 @@ export default function CourseCreatePage({
     );
   }, [formOptions, watchedGlobalCategoryFromForm]);
 
+  const makeContextLink = (path: string) => {
+    return activeSlug ? `/${activeSlug}${path}` : path;
+  };
+
   const handleFormSubmit = async (
     data: CourseFormValues,
     status: CourseStatus,
@@ -458,25 +462,62 @@ export default function CourseCreatePage({
         ? await api.put(`/tutor-courses/${courseSlug}/`, formData)
         : await api.post("/tutor-courses/", formData);
 
-      const { title: courseTitle } = response.data;
+      const { title: courseTitle, slug: newSlug } = response.data;
 
       localStorage.removeItem(storageKey);
       localStorage.removeItem(`${storageKey}_step`);
-
-      toast.success(isEditMode ? "Course Updated" : "Course Created", {
-        description:
-          status === "published"
-            ? `${courseTitle} is now live.`
-            : `${courseTitle} saved as draft.`,
-      });
-        
       isNavigatingAway.current = true;
 
-      if (!isEditMode && status !== "draft") {
-        form.reset();
-        setCurrentStep(1);
+      if (status === "published") {
+        toast.success("Launch Successful!", {
+          description: (
+            <div className="flex flex-col gap-3 mt-2">
+              <p className="text-[11px] font-medium text-white/90">
+                <span className="font-black uppercase">{courseTitle}</span> is now live.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button 
+                  size="sm" 
+                  className="h-7 px-3 bg-[#f97316] hover:bg-[#ea580c] text-white text-[10px] font-black uppercase rounded-sm border-none transition-all shadow-lg"
+                  onClick={() => router.push(makeContextLink(`/courses/${newSlug}/learning-preview`))}
+                >
+                  Preview Learning
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="h-7 px-3 bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase rounded-sm border border-white/20 transition-all"
+                  onClick={() => router.push(makeContextLink(`/courses/${newSlug}/live-classes`))}
+                >
+                  Live Classes
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="link"
+                  className="h-7 px-2 text-white hover:text-[#f97316] text-[10px] font-black uppercase underline decoration-2 underline-offset-4"
+                  onClick={() => router.push(makeContextLink(`/courses/${newSlug}`))}
+                >
+                  Manage
+                </Button>
+              </div>
+            </div>
+          ),
+          duration: 12000,
+          style: {
+            backgroundColor: "#10b981",
+            border: "1px solid #059669",
+            color: "#ffffff",
+            padding: "16px",
+            borderRadius: "8px",
+          },
+        });
+
+        if (!isEditMode) {
+          form.reset();
+          setCurrentStep(1);
+        }
         router.push(dashboardUrl);
       } else {
+        toast.success(`${courseTitle} Saved as Draft`);
         router.push(dashboardUrl);
       }
 

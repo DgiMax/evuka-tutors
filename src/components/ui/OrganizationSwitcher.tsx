@@ -14,22 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 
 const PERSONAL_ACCOUNT_VALUE = "__personal__";
-const STUDENT_DOMAIN = process.env.NEXT_PUBLIC_STUDENT_URL || "https://e-vuka.com";
-const TUTOR_DOMAIN = process.env.NEXT_PUBLIC_TUTOR_URL || "https://tutors.e-vuka.com";
 
-interface OrganizationSwitcherProps {
-  triggerClassName?: string;
-}
-
-export default function OrganizationSwitcher({ triggerClassName }: OrganizationSwitcherProps) {
+export default function OrganizationSwitcher({ triggerClassName }: { triggerClassName?: string }) {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const { activeSlug, setActiveSlug, setActiveRole } = useActiveOrg();
+  const { activeSlug } = useActiveOrg();
 
   if (loading || !user) return null;
 
@@ -40,86 +33,78 @@ export default function OrganizationSwitcher({ triggerClassName }: OrganizationS
     if (value === selectedValue) return;
 
     if (value === PERSONAL_ACCOUNT_VALUE) {
-      setActiveSlug(null);
-      setActiveRole(null);
       router.push("/");
       return;
     }
 
-    const targetOrg = organizations.find((org) => org.organization_slug === value);
-    if (!targetOrg) return;
-
-    setActiveSlug(targetOrg.organization_slug);
-    setActiveRole(targetOrg.role || "student");
-
-    const isStudentRole = targetOrg.role === "student";
-    const targetBaseUrl = isStudentRole ? STUDENT_DOMAIN : TUTOR_DOMAIN;
-    const currentOrigin = window.location.origin.replace(/\/$/, "");
-    const normalizedBase = targetBaseUrl.replace(/\/$/, "");
-
-    if (currentOrigin === normalizedBase) {
-      router.push(`/${targetOrg.organization_slug}`);
-    } else {
-      window.location.href = `${normalizedBase}/${targetOrg.organization_slug}`;
-    }
+    router.push(`/${value}`);
   };
 
   return (
     <Select key={activeSlug ?? "personal"} value={selectedValue} onValueChange={handleSelectChange}>
-      <SelectTrigger className={cn("justify-between truncate", triggerClassName)} aria-label="Select account or organization">
+      <SelectTrigger className={cn("justify-between truncate rounded-md shadow-none", triggerClassName)}>
         <SelectValue placeholder="Select account..." />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="rounded-md shadow-none border-border">
         <SelectGroup>
-          <SelectItem value={PERSONAL_ACCOUNT_VALUE}>{user.username} (Personal)</SelectItem>
+          <SelectItem value={PERSONAL_ACCOUNT_VALUE} className="cursor-pointer">
+            {user.username} (Personal)
+          </SelectItem>
         </SelectGroup>
 
         {organizations.length > 0 && (
           <>
             <SelectSeparator />
             <SelectGroup>
-              <SelectLabel>Organizations</SelectLabel>
-              {organizations
-                .filter((org) => org.organization_slug && org.organization_slug.trim() !== "")
-                .map((org) => (
-                  <SelectItem key={org.organization_slug} value={org.organization_slug}>
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <span>
-                        {org.organization_name.length > 14 ? org.organization_name.slice(0, 14) + "..." : org.organization_name}
-                      </span>
-                      <span className="text-xs text-muted-foreground uppercase border px-1 rounded">
-                        {org.role === "student" ? "STU" : "TUT"}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
+              <SelectLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-1.5">
+                Organizations
+              </SelectLabel>
+              <div className="max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 scrollbar-track-transparent">
+                {organizations
+                  .filter((org) => org.organization_slug?.trim())
+                  .map((org) => (
+                    <SelectItem 
+                      key={org.organization_slug} 
+                      value={org.organization_slug}
+                      disabled={!org.is_published}
+                      className="cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between w-full gap-4">
+                        <span className="truncate">
+                          {org.organization_name.length > 18 ? org.organization_name.slice(0, 18) + "..." : org.organization_name}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground uppercase border border-border px-1 rounded font-bold shrink-0">
+                          {org.role === "student" ? "STU" : "TUT"}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+              </div>
             </SelectGroup>
           </>
         )}
 
         <SelectSeparator />
         <SelectGroup>
-          <SelectLabel>Actions</SelectLabel>
-          <Link
-            href="/discover/organizations"
-            className={cn(
-              "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none transition-colors",
-              "focus:bg-accent focus:text-accent-foreground hover:bg-accent"
-            )}
-          >
-            <Search className="mr-2 h-4 w-4" />
-            <span>Discover Organizations</span>
-          </Link>
-          <Link
-            href="/organizations/create"
-            className={cn(
-              "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none transition-colors",
-              "focus:bg-accent focus:text-accent-foreground hover:bg-accent"
-            )}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            <span>Create Organization</span>
-          </Link>
+          <SelectLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2 py-1.5">
+            Actions
+          </SelectLabel>
+          <div className="space-y-0.5">
+            <Link 
+              href="/discover/organizations" 
+              className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent transition-colors"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              <span>Discover Organizations</span>
+            </Link>
+            <Link 
+              href="/organizations/create" 
+              className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent transition-colors"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              <span>Create Organization</span>
+            </Link>
+          </div>
         </SelectGroup>
       </SelectContent>
     </Select>
